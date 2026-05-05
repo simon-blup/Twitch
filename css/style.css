@@ -1,0 +1,55 @@
+body, html {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    background-color: #0e0e10; color: #efeff1;
+    font-family: "Segoe UI", Roboto, sans-serif; overflow: hidden;
+}
+
+#app-container { display: flex; flex-direction: column; width: 100%; height: 100%; }
+
+#topbar {
+    width: 100%; height: 140px;
+    display: flex; align-items: center;
+    padding: 0 80px; box-sizing: border-box;
+}
+
+#main-menu {
+    position: relative;
+    display: flex; align-items: center;
+    width: 100%; /* Occupa tutta la larghezza per permettere all'omino di andare a destra */
+    gap: 20px;
+}
+
+#nav-indicator {
+    position: absolute; height: 56px;
+    background-color: #ffffff; border-radius: 50px;
+    z-index: 0;
+    transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+    box-shadow: 0 10px 30px rgba(255, 255, 255, 0.2);
+}
+
+.menu-item {
+    position: relative; z-index: 1;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 19px; font-weight: 300; letter-spacing: 2px;
+    text-transform: uppercase; padding: 14px 30px;
+    color: #adadb8; transition: all 0.4s ease;
+}
+
+/* SPINGE L'OMINO A DESTRA */
+#menu-profile {
+    margin-left: auto;
+    padding: 14px 20px;
+}
+
+.menu-item.active-text {
+    color: #000000; font-weight: 500; transform: scale(1.1);
+}
+
+.icon-search { width: 28px; height: 28px; }
+.icon-profile { width: 28px; height: 28px; }
+
+/* Contenuto */
+#content { padding: 20px 80px; }
+#page-title { font-size: 24px; font-weight: 200; letter-spacing: 3px; color: #adadb8; text-transform: uppercase; }
+#channel-grid { display: flex; gap: 40px; }
+.channel-card { width: 360px; height: 200px; background-color: #1f1f23; border-radius: 12px; }
