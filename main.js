@@ -17,6 +17,11 @@ let originalHeroCount = 0; // Per gestire il loop infinito della prima riga
 let settingsRow = 0;
 let settingsCol = [0, 0];
 
+// Per gestire Follow
+let followDataRows = [];
+let followActiveRow = 0;
+let followActiveCol = 0;
+
 window.onload = async function () {
     applySettings();
     if (userToken) {
@@ -110,6 +115,10 @@ async function loadContent() {
     if (selectedId === 'menu-home') {
         activeRow = 0;
         await getTwitchHome();
+    } else if (selectedId === 'menu-follow') {
+        followActiveRow = 0;
+        followActiveCol = 0;
+        await getFollowData();
     } else if (selectedId === 'menu-settings') {
         settingsRow = 0;
         // 0: Center, 1: Left (invertiti come richiesto)
@@ -144,7 +153,7 @@ async function getTwitchHome() {
                 homeDataRows.push({ title: "Channels you follow", type: "stream", data: [] });
             }
         } else {
-            homeDataRows.push({ title: "Log in to see channels you follow", type: "login_btn", data: [{}] });
+            homeDataRows.push({ title: "", type: "login_btn", data: [{}] });
         }
 
         // 3. Top Categories
@@ -180,7 +189,7 @@ function renderHome() {
     const isLight = document.body.classList.contains('theme-light');
     const titleColor = isLight ? '#000' : 'white';
 
-    let html = '<div id="home-view" style="padding-bottom:100px;">';
+    let html = '<div id="home-view" style="padding-bottom:60vh;">';
     homeDataRows.forEach((row, rowIndex) => {
         if (row.title) {
             html += `<h3 style="color:${titleColor}; margin-left:80px; margin-bottom:15px; font-size:26px;">${row.title}</h3>`;
@@ -200,9 +209,12 @@ function renderHome() {
         if (!rowDiv) return;
 
         if (row.type === 'login_btn') {
+            rowDiv.style.width = '100%';
+            rowDiv.style.height = '60vh';
             rowDiv.style.justifyContent = 'center';
+            rowDiv.style.transform = 'none';
             const card = document.createElement('div');
-            card.className = 'login-home-btn';
+            card.className = 'login-btn';
             card.innerHTML = 'Go to Profile to Log In';
             rowDiv.appendChild(card);
         } else if (row.type === 'category') {
@@ -248,7 +260,7 @@ function updateHomeSelection() {
         const isActiveRow = !inMenu && activeRow === rowIndex;
 
         if (row.type === 'login_btn') {
-            const btn = rowDiv.querySelector('.login-home-btn');
+            const btn = rowDiv.querySelector('.login-btn');
             if (btn) btn.classList.toggle('focused', isActiveRow);
             return;
         }
@@ -283,10 +295,91 @@ function updateHomeSelection() {
     if (!inMenu && activeRow > 0) {
         const rowEl = document.getElementById(`row-${activeRow}`);
         if (rowEl) {
-            const rect = rowEl.getBoundingClientRect();
-            const absoluteTop = rect.top + window.pageYOffset;
-            const targetY = absoluteTop - (window.innerHeight / 2) + (rect.height / 2);
-            window.scrollTo({ top: targetY, behavior: 'smooth' }); // Smooth scroll verticale
+            rowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+}
+
+async function getFollowData() {
+    followDataRows = [];
+    if (!userToken) {
+        followDataRows.push({ type: "login_btn", data: [{}] });
+        renderFollowScreen();
+        return;
+    }
+    try {
+        const folRes = await twitchFetch(`https://api.twitch.tv/helix/streams/followed?user_id=${userId}&first=100`);
+        let streams = folRes.data || [];
+        for (let i = 0; i < streams.length; i += 3) {
+            followDataRows.push({ type: "stream", data: streams.slice(i, i + 3) });
+        }
+        if (followDataRows.length === 0) {
+            followDataRows.push({ type: "empty", data: [{}] });
+        }
+        renderFollowScreen();
+    } catch (e) {
+        console.error(e);
+        const va = document.getElementById('main-view-area');
+        if (va) va.innerHTML = `<div style="color:red; text-align:center; padding-top:100px;">Loading error.</div>`;
+    }
+}
+
+function renderFollowScreen() {
+    const viewArea = document.getElementById('main-view-area');
+    if (!viewArea) return;
+    
+    let html = '<div id="follow-view" style="padding-bottom:60vh; display:flex; flex-direction:column; align-items:center; gap:40px;">';
+    followDataRows.forEach((row, rowIndex) => {
+        if (row.type === 'login_btn') {
+            html += `
+            <div style="display:flex; justify-content:center; align-items:center; height:60vh; width:100%;">
+                <div class="login-btn ${!inMenu ? 'focused' : ''}">Go to Profile to Log In</div>
+            </div>`;
+        } else if (row.type === 'empty') {
+            html += `<div style="color:white; font-size:30px; margin-top:100px;">No followed channels are live right now.</div>`;
+        } else if (row.type === 'stream') {
+            html += `<div id="follow-row-${rowIndex}" class="channel-grid" style="justify-content:center; width: 100%;">`;
+            row.data.forEach((item, colIndex) => {
+                let thumb = item.thumbnail_url.replace('{width}', '600').replace('{height}', '338');
+                const viewers = formatViewers(item.viewer_count);
+                html += `
+                    <div id="follow-card-${rowIndex}-${colIndex}" class="channel-card">
+                        <div class="badge-live">LIVE</div>
+                        <div class="badge-viewers">${viewers}</div>
+                        <img src="${thumb}" style="width:100%; height:100%; object-fit:cover;">
+                        <div class="card-info">
+                            <div style="font-size:22px; font-weight:bold; color:white;">${item.user_name}</div>
+                            <div style="font-size:16px; color:#adadb8; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.title}</div>
+                        </div>
+                    </div>`;
+            });
+            html += `</div>`;
+        }
+    });
+    html += '</div>';
+    viewArea.innerHTML = html;
+    updateFollowSelection();
+}
+
+function updateFollowSelection() {
+    if (followDataRows.length === 0) return;
+    const currentRowData = followDataRows[followActiveRow];
+    
+    document.querySelectorAll('#follow-view .channel-card').forEach(c => c.classList.remove('selected'));
+    
+    if (currentRowData && currentRowData.type === 'login_btn') {
+        const btn = document.querySelector('#follow-view .login-btn');
+        if (btn) btn.classList.toggle('focused', !inMenu);
+        return;
+    }
+
+    if (!inMenu && currentRowData && currentRowData.type === 'stream') {
+        const card = document.getElementById(`follow-card-${followActiveRow}-${followActiveCol}`);
+        if (card) {
+            card.classList.add('selected');
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     } else {
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -297,6 +390,14 @@ function showSettingsScreen() {
     const viewArea = document.getElementById('main-view-area');
     if (!viewArea) return;
     const textColor = document.body.classList.contains('theme-light') ? '#000' : 'white';
+
+    if (!userToken) {
+        viewArea.innerHTML = `
+            <div style="display:flex; justify-content:center; align-items:center; height:60vh; width:100%;">
+                <div class="login-btn ${!inMenu ? 'focused' : ''}">Go to Profile to Log In</div>
+            </div>`;
+        return;
+    }
 
     viewArea.innerHTML = `
         <div style="text-align:center; padding-top:100px; padding-bottom:100px;">
@@ -347,9 +448,11 @@ async function startDeviceFlow() {
         const data = await resp.json();
         const textColor = document.body.classList.contains('theme-light') ? '#000' : 'white';
         viewArea.innerHTML = `
-            <div style="text-align:center; min-width:100vw; padding-top:50px;">
-                <h1 style="color:#bf94ff; font-size:50px;">twitch.tv/activate</h1>
-                <div style="color:${textColor}; font-size:80px; font-weight:bold; margin:40px 0; letter-spacing:15px;">${data.user_code}</div>
+            <div class="activation-container">
+                <div class="activation-box">
+                    <h1 style="color:#bf94ff; font-size:50px; margin-bottom: 20px;">twitch.tv/activate</h1>
+                    <div style="color:${textColor}; font-size:80px; font-weight:bold; margin:20px 0; letter-spacing:15px;">${data.user_code}</div>
+                </div>
             </div>`;
         pollForToken(data.device_code, data.interval);
     } catch (e) { console.error(e); }
@@ -404,7 +507,7 @@ function handleKeydown(e) {
     if (inMenu) {
         if (e.keyCode === 39 && currentFocusIndex < menuItems.length - 1) { currentFocusIndex++; updateNav(); loadContent(); }
         if (e.keyCode === 37 && currentFocusIndex > 0) { currentFocusIndex--; updateNav(); loadContent(); }
-        if (e.keyCode === 40) { inMenu = false; updateNav(); if (selectedId === 'menu-home') updateHomeSelection(); if (selectedId === 'menu-settings') showSettingsScreen(); if (selectedId === 'menu-profile') showProfileScreen(); }
+        if (e.keyCode === 40) { inMenu = false; updateNav(); if (selectedId === 'menu-home') updateHomeSelection(); if (selectedId === 'menu-follow') updateFollowSelection(); if (selectedId === 'menu-settings') showSettingsScreen(); if (selectedId === 'menu-profile') showProfileScreen(); }
     } else {
         if (selectedId === 'menu-home') {
             const currentRowData = homeDataRows[activeRow];
@@ -443,8 +546,49 @@ function handleKeydown(e) {
             }
             if (e.keyCode === 40 && activeRow < homeDataRows.length - 1) { activeRow++; updateHomeSelection(); }
             if (e.keyCode === 38) { if (activeRow > 0) { activeRow--; updateHomeSelection(); } else { inMenu = true; updateNav(); updateHomeSelection(); } }
-            if (e.keyCode === 13 && currentRowData.type === 'login_btn') { currentFocusIndex = 3; inMenu = true; updateNav(); loadContent(); }
+            if (e.keyCode === 13 && currentRowData.type === 'login_btn') { currentFocusIndex = 4; inMenu = true; updateNav(); loadContent(); }
+        } else if (selectedId === 'menu-follow') {
+            if (followDataRows.length === 0) return;
+            const currentRowData = followDataRows[followActiveRow];
+            if (currentRowData.type === 'login_btn' || currentRowData.type === 'empty') {
+                if (e.keyCode === 38) { inMenu = true; updateNav(); updateFollowSelection(); }
+                if (e.keyCode === 13 && currentRowData.type === 'login_btn') { currentFocusIndex = 4; inMenu = true; updateNav(); loadContent(); }
+                return;
+            }
+            if (e.keyCode === 39) {
+                if (followActiveCol < currentRowData.data.length - 1) followActiveCol++;
+                updateFollowSelection();
+            }
+            if (e.keyCode === 37) {
+                if (followActiveCol > 0) followActiveCol--;
+                updateFollowSelection();
+            }
+            if (e.keyCode === 40) {
+                if (followActiveRow < followDataRows.length - 1) {
+                    followActiveRow++;
+                    if (followActiveCol >= followDataRows[followActiveRow].data.length) {
+                        followActiveCol = followDataRows[followActiveRow].data.length - 1;
+                    }
+                    updateFollowSelection();
+                }
+            }
+            if (e.keyCode === 38) {
+                if (followActiveRow > 0) {
+                    followActiveRow--;
+                    if (followActiveCol >= followDataRows[followActiveRow].data.length) {
+                        followActiveCol = followDataRows[followActiveRow].data.length - 1;
+                    }
+                    updateFollowSelection();
+                } else {
+                    inMenu = true; updateNav(); updateFollowSelection();
+                }
+            }
         } else if (selectedId === 'menu-settings') {
+            if (!userToken) {
+                if (e.keyCode === 13) { currentFocusIndex = 4; inMenu = true; updateNav(); loadContent(); }
+                if (e.keyCode === 38) { inMenu = true; updateNav(); showSettingsScreen(); }
+                return;
+            }
             if (e.keyCode === 39 && settingsCol[settingsRow] < 1) { settingsCol[settingsRow]++; showSettingsScreen(); }
             if (e.keyCode === 37 && settingsCol[settingsRow] > 0) { settingsCol[settingsRow]--; showSettingsScreen(); }
             if (e.keyCode === 40 && settingsRow < 1) { settingsRow++; showSettingsScreen(); }
