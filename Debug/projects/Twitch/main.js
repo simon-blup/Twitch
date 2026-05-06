@@ -390,12 +390,29 @@ async function getFollowData() {
     try {
         const folRes = await twitchFetch(`https://api.twitch.tv/helix/streams/followed?user_id=${userId}&first=100`);
         let streams = folRes.data || [];
+        
+        let liveUsers = [];
+        if (streams.length > 0) {
+            const userIds = streams.map(s => `id=${s.user_id}`).join('&');
+            try {
+                const userRes = await twitchFetch(`https://api.twitch.tv/helix/users?${userIds}`);
+                if (userRes && userRes.data) {
+                    liveUsers = userRes.data;
+                }
+            } catch (e) { console.error("Error fetching live users for follow", e); }
+        }
+        window.followLiveUsers = liveUsers;
+
         for (let i = 0; i < streams.length; i += 3) {
             followDataRows.push({ type: "stream", data: streams.slice(i, i + 3) });
         }
         if (followDataRows.length === 0) {
             followDataRows.push({ type: "empty", data: [{}] });
         }
+        if (liveUsers.length > 0) {
+            followDataRows.push({ type: "avatars", data: liveUsers });
+        }
+        
         renderFollowScreen();
     } catch (e) {
         console.error(e);
@@ -434,8 +451,15 @@ function renderFollowScreen() {
                     </div>`;
             });
             html += `</div>`;
+        } else if (row.type === 'avatars') {
+            html += `<div class="live-avatars-bar" id="follow-row-${rowIndex}">`;
+            row.data.forEach((item, colIndex) => {
+                html += `<img src="${item.profile_image_url}" id="follow-card-${rowIndex}-${colIndex}" class="live-avatar-small" />`;
+            });
+            html += `</div>`;
         }
     });
+
     html += '</div>';
     viewArea.innerHTML = html;
     updateFollowSelection();
@@ -445,7 +469,7 @@ function updateFollowSelection() {
     if (followDataRows.length === 0) return;
     const currentRowData = followDataRows[followActiveRow];
     
-    document.querySelectorAll('#follow-view .channel-card').forEach(c => c.classList.remove('selected'));
+    document.querySelectorAll('#follow-view .channel-card, #follow-view .live-avatar-small').forEach(c => c.classList.remove('selected'));
     
     if (currentRowData && currentRowData.type === 'login_btn') {
         const btn = document.querySelector('#follow-view .login-btn');
@@ -453,14 +477,16 @@ function updateFollowSelection() {
         return;
     }
 
-    if (!inMenu && currentRowData && currentRowData.type === 'stream') {
+    if (!inMenu && currentRowData && (currentRowData.type === 'stream' || currentRowData.type === 'avatars')) {
         const card = document.getElementById(`follow-card-${followActiveRow}-${followActiveCol}`);
         if (card) {
             card.classList.add('selected');
         }
-        const rowEl = document.getElementById(`follow-row-${followActiveRow}`);
-        if (rowEl) {
-            rowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (currentRowData.type === 'stream') {
+            const rowEl = document.getElementById(`follow-row-${followActiveRow}`);
+            if (rowEl) rowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } else {
+            if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
         }
     } else {
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -725,15 +751,10 @@ function renderSearchResults() {
                     </div>`;
             } else if (row.type === 'category') {
                 const box = item.box_art_url || '';
-                let viewersHtml = '';
-                if (item.viewer_count !== undefined) {
-                    viewersHtml = `<div class="badge-viewers">${formatViewers(item.viewer_count)}</div>`;
-                }
                 html += `
-                    <div class="category-card ${selClass}" id="search-card-${rIdx}-${cIdx}" style="flex-shrink:0;">
-                        ${viewersHtml}
-                        <img src="${box.replace('{width}','300').replace('{height}','400')}" style="width:100%; height:100%; object-fit:cover;">
-                        <div class="card-info"><div style="font-size:20px; font-weight:bold; color:white;">${item.name}</div></div>
+                    <div class="category-card ${selClass}" id="search-card-${rIdx}-${cIdx}" style="flex-shrink:0; width:200px; height:266px;">
+                        <img src="${box.replace('{width}','200').replace('{height}','266')}" style="width:100%; height:100%; border-radius:10px; object-fit:cover;">
+                        <div style="margin-top:10px; font-weight:bold; color:${titleColor}; text-align:center;">${item.name}</div>
                     </div>`;
             } else if (row.type === 'channel') {
                 const thumb = item.thumbnail_url || '';
@@ -1168,6 +1189,14 @@ function handleKeydown(e) {
                     updateFollowSelection();
                 } else {
                     inMenu = true; updateNav(); updateFollowSelection();
+                }
+            } else if (e.keyCode === 13) {
+                if (currentRowData.type === 'stream') {
+                    const selectedStream = currentRowData.data[followActiveCol];
+                    window.open(`https://www.twitch.tv/${selectedStream.user_name}`, '_blank');
+                } else if (currentRowData.type === 'avatars') {
+                    const selectedAvatar = currentRowData.data[followActiveCol];
+                    window.open(`https://www.twitch.tv/${selectedAvatar.login}`, '_blank');
                 }
             }
         } else if (selectedId === 'menu-settings') {
