@@ -8,6 +8,7 @@ body, html {
     font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     overflow-x: hidden;
     transition: background-color 0.3s;
+    scroll-behavior: smooth; /* Aggiunto per fluidità scorrimento verticale */
 }
 
 ::-webkit-scrollbar {
@@ -117,13 +118,12 @@ body.theme-light .menu-item.active-text {
 /* --- AREA CONTENUTI --- */
 #content {
     flex-grow: 1;
-    padding-top: 140px; /* Default con menu */
+    padding-top: 140px; 
     display: flex;
     flex-direction: column;
     transition: padding-top 0.5s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-/* Quando il menu scompare, il contenuto sale */
 body.menu-hidden #content {
     padding-top: 40px;
 }
@@ -142,15 +142,16 @@ body.menu-hidden #content {
 .channel-grid {
     display: flex;
     align-items: center;
-    gap: 20px; /* Leggermente aumentato per card più grandi */
+    gap: 20px;
     transition: transform 0.7s cubic-bezier(0.23, 1, 0.32, 1);
     will-change: transform;
 }
 
+/* Griglia hero con allineamento verticale in basso */
 .channel-grid.hero-grid {
     align-items: flex-end;
     gap: 20px;
-    min-height: 550px; /* Aumentato per card hero più grandi */
+    min-height: 550px;
     padding-bottom: 30px;
 }
 
@@ -171,19 +172,17 @@ body.theme-light .channel-card, body.theme-light .category-card {
     box-shadow: 0 10px 30px rgba(0,0,0,0.1);
 }
 
-/* Card Normali Live: PIÙ GRANDI (600x338) */
 .channel-card {
     width: 600px;
     height: 338px;
 }
 
-/* Card Categorie: PIÙ GRANDI (300x400) */
 .category-card {
     width: 300px;
     height: 400px;
 }
 
-/* --- HERO ROW (Live Consigliate) PIÙ GRANDI (800x450) --- */
+/* --- HERO ROW (Live Consigliate) --- */
 .hero-card {
     width: 800px;
     height: 450px;
