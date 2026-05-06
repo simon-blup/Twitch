@@ -10,34 +10,23 @@
     <div id="app-container">
         <header id="topbar">
             <nav id="main-menu">
-                <!-- La pillola magica che scivola -->
                 <div id="nav-indicator"></div>
-
                 <div class="menu-item" id="menu-search">
-                    <svg class="icon-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="11" cy="11" r="8"></circle>
-                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                    </svg>
+                    <svg class="icon-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                 </div>
                 <div class="menu-item" id="menu-home">Home</div>
                 <div class="menu-item" id="menu-settings">Settings</div> 
-                
-                <!-- L'omino ora è parte del menu, ma lo distanziamo col CSS   -->
                 <div class="menu-item" id="menu-profile">
-                    <svg class="icon-profile" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="12" cy="7" r="4"></circle>
-                    </svg>
+                    <svg class="icon-profile" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                 </div>
             </nav>
         </header>
 
         <main id="content">
-            <h2 id="page-title">Canali Consigliati</h2>
-            <div id="channel-grid">
-                <div class="channel-card">Canale 1</div>
-                <div class="channel-card">Canale 2</div>
-                <div class="channel-card">Canale 3</div>
+            <h2 id="page-title">Featured Content</h2>
+            <!-- Contenitore per lo slider moderno -->
+            <div id="carousel-container">
+                <div id="channel-grid"></div>
             </div>
         </main>
     </div>
