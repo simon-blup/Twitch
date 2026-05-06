@@ -53,7 +53,7 @@ body.theme-light #topbar {
 }
 
 #topbar.hidden-topbar {
-    transform: translateY(-140px);
+    transform: translateY(-220px);
 }
 
 #main-menu {
@@ -64,6 +64,17 @@ body.theme-light #topbar {
     gap: 20px;
     justify-content: center;
     transition: justify-content 0.3s ease;
+}
+
+.twitch-logo {
+    position: absolute;
+    left: 80px;
+    color: #bf94ff;
+    transition: color 0.3s ease;
+}
+
+body.theme-light .twitch-logo {
+    color: #9146FF;
 }
 
 #nav-indicator {
@@ -121,10 +132,134 @@ body.theme-light .menu-item.active-text {
     height: 28px;
 }
 
+/* --- SEARCH DROPDOWN & PILL (below menu) --- */
+.search-dropdown {
+    position: absolute;
+    top: 120px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-20px);
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+    z-index: 90;
+}
+
+.search-dropdown.search-open {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.search-input-pill {
+    width: 600px;
+    padding: 16px 30px;
+    border-radius: 50px;
+    border: none;
+    outline: none;
+    background-color: #d8d8d8; /* Grigio chiaro semplice */
+    color: #1a1a20;
+    font-size: 22px;
+    font-family: inherit;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    transition: all 0.3s ease;
+}
+
+body.theme-light .search-input-pill {
+    background-color: #e5e5e5;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+.search-input-pill::placeholder {
+    color: #666;
+}
+
+.search-input-pill:focus {
+    background-color: #f0f0f0;
+    box-shadow: 0 0 0 4px rgba(145, 70, 255, 0.5), 0 10px 30px rgba(0,0,0,0.5);
+}
+
+body.theme-light .search-input-pill:focus {
+    background-color: #ffffff;
+    box-shadow: 0 0 0 4px rgba(145, 70, 255, 0.5), 0 10px 30px rgba(0,0,0,0.1);
+}
+
+/* --- ELEGANT SEARCH RESULTS --- */
+.search-channel-card {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 20px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+    transform: scale(0.95);
+    opacity: 0.6;
+    border: 2px solid transparent;
+}
+
+body.theme-light .search-channel-card {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+.search-channel-card.selected {
+    transform: scale(1);
+    opacity: 1;
+    background: rgba(255, 255, 255, 0.1);
+    border-color: #9146ff;
+    box-shadow: 0 10px 30px rgba(145, 70, 255, 0.2);
+}
+
+body.theme-light .search-channel-card.selected {
+    background: #ffffff;
+    box-shadow: 0 10px 30px rgba(145, 70, 255, 0.15);
+}
+
+.search-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+}
+
+.search-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.search-name {
+    font-size: 24px;
+    font-weight: bold;
+    color: white;
+}
+
+body.theme-light .search-name {
+    color: #0e0e10;
+}
+
+.search-game {
+    font-size: 16px;
+    color: #adadb8;
+    margin-top: 4px;
+}
+
+body.theme-light .search-game {
+    color: #555;
+}
+
+.search-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 30px;
+    padding: 0 80px 80px 80px;
+}
+
 /* --- AREA CONTENUTI --- */
 #content {
     flex-grow: 1;
-    padding-top: 140px;
+    padding-top: 100px;
     display: flex;
     flex-direction: column;
     transition: padding-top 0.5s cubic-bezier(0.23, 1, 0.32, 1);
@@ -132,7 +267,16 @@ body.theme-light .menu-item.active-text {
 }
 
 body.menu-hidden #content {
-    padding-top: 40px;
+    padding-top: 20px;
+}
+
+#search-view {
+    padding-top: 140px;
+    transition: padding-top 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+body.menu-hidden #search-view {
+    padding-top: 20px;
 }
 
 #page-title {
@@ -405,4 +549,43 @@ body.menu-hidden .activation-container {
 body.theme-light .activation-box {
     background-color: #ffffff;
     box-shadow: 0 0 30px rgba(145, 70, 255, 0.2);
+}
+
+/* --- FILTER BUTTONS --- */
+.filter-btn {
+    padding: 10px 25px;
+    border-radius: 20px;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #adadb8;
+    font-weight: bold;
+    font-size: 18px;
+    border: 2px solid transparent;
+    transition: all 0.3s;
+    cursor: pointer;
+}
+
+.filter-btn.active {
+    background-color: #9146ff;
+    color: white;
+}
+
+.filter-btn.focused {
+    transform: scale(1.15);
+    border-color: white;
+    box-shadow: 0 0 20px rgba(145, 70, 255, 0.8);
+}
+
+body.theme-light .filter-btn {
+    background-color: rgba(0, 0, 0, 0.08);
+    color: #555;
+}
+
+body.theme-light .filter-btn.active {
+    background-color: #9146ff;
+    color: white;
+}
+
+body.theme-light .filter-btn.focused {
+    border-color: #9146ff;
+    box-shadow: 0 0 20px rgba(145, 70, 255, 0.3);
 }

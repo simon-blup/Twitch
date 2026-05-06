@@ -22,15 +22,55 @@ let followDataRows = [];
 let followActiveRow = 0;
 let followActiveCol = 0;
 
+// Per gestire Category View
+let inCategoryView = false;
+let categoryDataRows = [];
+let categoryActiveRow = 0;
+let categoryActiveCol = 0;
+let currentCategoryData = null;
+let categoryFilters = { it: true, en: true };
+let categoryFilterIdx = 0;
+let clipPeriod = '7d';
+
 window.onload = async function () {
     applySettings();
     if (userToken) {
-        // Proviamo a rinfrescare il token all'avvio per assicurarci che sia valido
-        await validateOrRefreshToken();
-        if (!userId) await fetchUserId();
+        try {
+            const valRes = await fetch('https://id.twitch.tv/oauth2/validate', {
+                headers: { 'Authorization': 'OAuth ' + userToken }
+            });
+            if (valRes.status === 401) {
+                await validateOrRefreshToken();
+            } else {
+                const valData = await valRes.json();
+                if (valData.user_id) {
+                    userId = valData.user_id;
+                    localStorage.setItem('twitch_user_id', userId);
+                }
+            }
+        } catch (e) { console.error("Validation failed", e); }
+        
+        if (!userId && userToken) await fetchUserId();
     }
     updateNav();
     loadContent();
+    
+    const searchInput = document.getElementById('search-input');
+    if (searchInput) {
+        let searchTimeout = null;
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            const q = this.value.trim();
+            if (q.length < 2) {
+                const resultsArea = document.getElementById('search-results-area');
+                if (resultsArea) resultsArea.innerHTML = '';
+                searchDataRows = [];
+                return;
+            }
+            searchTimeout = setTimeout(() => executeSearch(q), 400);
+        });
+    }
+
     document.addEventListener('keydown', handleKeydown);
 };
 
@@ -56,8 +96,10 @@ function applySettings() {
     const topbarMenu = document.getElementById('main-menu');
     if (appSettings.barPos === 'center') {
         topbarMenu.style.justifyContent = 'center';
+        topbarMenu.style.paddingLeft = '0px';
     } else {
         topbarMenu.style.justifyContent = 'flex-start';
+        topbarMenu.style.paddingLeft = '80px';
     }
 
     if (appSettings.theme === 'light') {
@@ -112,7 +154,22 @@ async function loadContent() {
 
     if (viewArea) viewArea.innerHTML = `<div style="text-align:center; padding-top:100px; color:white;">Loading...</div>`;
 
+    if (selectedId === 'menu-search') {
+        searchDataRows = [];
+        searchActiveRow = -1;
+        searchActiveCol = 0;
+        isSearchInputFocused = false;
+        if (viewArea) {
+            viewArea.innerHTML = `
+                <div id="search-view" style="padding-bottom: 60px;">
+                    <div id="search-results-area"></div>
+                </div>`;
+        }
+        return;
+    }
+
     if (selectedId === 'menu-home') {
+        inCategoryView = false;
         if (appSettings.performanceMode) {
             // In performance mode, skip home, go to follow
             const menuItems2 = document.querySelectorAll('.menu-item');
@@ -203,7 +260,7 @@ function renderHome() {
     const isLight = document.body.classList.contains('theme-light');
     const titleColor = isLight ? '#000' : 'white';
 
-    let html = '<div id="home-view" style="padding-bottom:60vh;">';
+    let html = '<div id="home-view" style="padding-bottom:60px;">';
     homeDataRows.forEach((row, rowIndex) => {
         if (row.title) {
             html += `<h3 style="color:${titleColor}; margin-left:80px; margin-bottom:30px; font-size:26px;">${row.title}</h3>`;
@@ -351,7 +408,7 @@ function renderFollowScreen() {
     const viewArea = document.getElementById('main-view-area');
     if (!viewArea) return;
     
-    let html = '<div id="follow-view" style="padding-top:60px; padding-bottom:60vh; display:flex; flex-direction:column; align-items:center; gap:20px;">';
+    let html = '<div id="follow-view" style="padding-top:20px; padding-bottom:60px; display:flex; flex-direction:column; align-items:center; gap:20px;">';
     followDataRows.forEach((row, rowIndex) => {
         if (row.type === 'login_btn') {
             html += `
@@ -461,10 +518,16 @@ async function showProfileScreen() {
             const res = await twitchFetch('https://api.twitch.tv/helix/users');
             const user = res.data && res.data[0];
             const userName = user ? user.display_name : "Unknown User";
+            
+            // Debug info
+            const tokenStatus = refreshToken ? "Refresh Token: Present" : "Refresh Token: Missing!";
+            const idStatus = userId ? "User ID: " + userId : "User ID: Missing!";
+            
             viewArea.innerHTML = `
                 <div class="full-page-screen">
                     <h1 style="color:${textColor}; font-size:48px; margin-bottom: 20px;">Hello, ${userName}!</h1>
-                    <div class="logout-btn ${!inMenu ? 'focused' : ''}" style="margin-top: 0;">LOG OUT</div>
+                    <div style="color:#adadb8; font-size:16px; margin-bottom:40px;">${tokenStatus} | ${idStatus}</div>
+                    <div class="logout-btn ${!inMenu ? 'focused' : ''}" style="margin-top: 0;">PRESS ENTER TO LOG OUT</div>
                 </div>`;
         } catch (e) { console.error(e); }
     } else { startDeviceFlow(); }
@@ -515,15 +578,34 @@ function updateNav() {
     const menuItems = document.querySelectorAll('.menu-item');
     const indicator = document.getElementById('nav-indicator');
     const active = menuItems[currentFocusIndex];
+    const searchDropdown = document.getElementById('search-dropdown');
+    const searchInput = document.getElementById('search-input');
+
     if (indicator && active) {
         indicator.style.opacity = inMenu ? "1" : "0.3";
         indicator.style.width = active.offsetWidth + 'px';
         indicator.style.left = active.offsetLeft + 'px';
     }
     menuItems.forEach((m, i) => m.classList.toggle('active-text', i === currentFocusIndex));
+    
+    if (searchDropdown && searchInput) {
+        const isOnLens = active && active.id === 'menu-search' && inMenu;
+        if (isSearchInputFocused || isOnLens) {
+            searchDropdown.classList.add('search-open');
+            if (isSearchInputFocused) {
+                setTimeout(() => { searchInput.focus(); }, 100);
+            } else {
+                searchInput.blur();
+            }
+        } else {
+            searchDropdown.classList.remove('search-open');
+            searchInput.blur();
+        }
+    }
+
     const topbar = document.getElementById('topbar');
     if (topbar) {
-        if (!inMenu) {
+        if (!inMenu && !isSearchInputFocused) {
             topbar.classList.add('hidden-topbar');
             document.body.classList.add('menu-hidden');
         } else {
@@ -533,16 +615,481 @@ function updateNav() {
     }
 }
 
+// --- SEARCH ---
+let searchDataRows = [];
+let searchActiveRow = 0;
+let searchActiveCol = 0;
+let isSearchInputFocused = false;
+
+async function executeSearch(query) {
+    const resultsArea = document.getElementById('search-results-area');
+    if (!resultsArea) return;
+
+    try {
+        const [chRes, catRes] = await Promise.all([
+            twitchFetch(`https://api.twitch.tv/helix/search/channels?query=${encodeURIComponent(query)}&first=20`),
+            twitchFetch(`https://api.twitch.tv/helix/search/categories?query=${encodeURIComponent(query)}&first=10`)
+        ]);
+
+        const channels = chRes.data || [];
+        const categories = catRes.data || [];
+
+        const liveChannels = channels.filter(c => c.is_live);
+        const allChannels = channels; // Metti pure quelli in live
+
+        let liveStreams = [];
+        if (liveChannels.length > 0) {
+            const userIds = liveChannels.map(c => `user_id=${c.id}`).join('&');
+            try {
+                const streamRes = await twitchFetch(`https://api.twitch.tv/helix/streams?${userIds}`);
+                liveStreams = streamRes.data || [];
+            } catch (e) { console.error("Error fetching live streams", e); }
+        }
+
+        let popularCategories = [];
+        if (categories.length > 0) {
+            const catPromises = categories.map(async (cat) => {
+                try {
+                    const stRes = await twitchFetch(`https://api.twitch.tv/helix/streams?game_id=${cat.id}&first=100`);
+                    let viewers = 0;
+                    if (stRes && stRes.data) {
+                        viewers = stRes.data.reduce((sum, stream) => sum + stream.viewer_count, 0);
+                    }
+                    cat.viewer_count = viewers;
+                } catch(e) { cat.viewer_count = 0; }
+                return cat;
+            });
+            await Promise.all(catPromises);
+            popularCategories = categories.filter(c => c.viewer_count >= 100);
+        }
+
+        if (allChannels.length > 0) {
+            const followerPromises = allChannels.map(async (c) => {
+                try {
+                    const folRes = await twitchFetch(`https://api.twitch.tv/helix/channels/followers?broadcaster_id=${c.id}`);
+                    c.follower_count = folRes.total || 0;
+                } catch(e) {
+                    c.follower_count = 0;
+                }
+                return c;
+            });
+            await Promise.all(followerPromises);
+            allChannels.sort((a, b) => b.follower_count - a.follower_count);
+        }
+
+        searchDataRows = [];
+        if (liveStreams.length > 0) searchDataRows.push({ title: 'Canali Live', type: 'live', data: liveStreams });
+        if (popularCategories.length > 0) searchDataRows.push({ title: 'Categorie', type: 'category', data: popularCategories });
+        if (allChannels.length > 0) searchDataRows.push({ title: 'Canali', type: 'channel', data: allChannels });
+
+        if (searchDataRows.length === 0) {
+            resultsArea.innerHTML = `<div style="text-align:center; padding-top:60px; color:#adadb8; font-size:24px;">Nessun risultato per "${query}"</div>`;
+            return;
+        }
+        
+        searchActiveRow = -1; 
+        searchActiveCol = 0;
+        renderSearchResults();
+    } catch (e) {
+        console.error(e);
+        resultsArea.innerHTML = `<div style="color:red; text-align:center; padding-top:60px;">Errore nella ricerca.</div>`;
+    }
+}
+
+function renderSearchResults() {
+    const resultsArea = document.getElementById('search-results-area');
+    if (!resultsArea) return;
+    const isLight = document.body.classList.contains('theme-light');
+    const titleColor = isLight ? '#000' : 'white';
+
+    let html = `<div style="padding: 0 0 80px 0;">`;
+    searchDataRows.forEach((row, rIdx) => {
+        html += `<h3 style="color:${titleColor}; margin: 30px 0 20px 80px; font-size:26px;">${row.title}</h3>`;
+        html += `<div style="overflow:hidden; width:100%; position:relative;">`;
+        html += `<div id="search-row-${rIdx}" style="display:flex; gap:30px; transition: transform 0.3s ease; padding: 10px 80px;">`;
+        row.data.forEach((item, cIdx) => {
+            const isSelected = searchActiveRow === rIdx && searchActiveCol === cIdx;
+            const selClass = isSelected ? 'selected' : '';
+            if (row.type === 'live') {
+                let thumb = item.thumbnail_url.replace('{width}', '600').replace('{height}', '338');
+                const viewers = formatViewers(item.viewer_count);
+                html += `
+                    <div id="search-card-${rIdx}-${cIdx}" class="channel-card follow-card ${selClass}" style="flex-shrink:0;">
+                        <div class="badge-live">LIVE</div>
+                        <div class="badge-viewers">${viewers}</div>
+                        <img src="${thumb}" style="width:100%; height:100%; object-fit:cover;">
+                        <div class="card-info">
+                            <div style="font-size:22px; font-weight:bold; color:white;">${item.user_name}</div>
+                            <div style="font-size:16px; color:#adadb8; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.title}</div>
+                        </div>
+                    </div>`;
+            } else if (row.type === 'category') {
+                const box = item.box_art_url || '';
+                let viewersHtml = '';
+                if (item.viewer_count !== undefined) {
+                    viewersHtml = `<div class="badge-viewers">${formatViewers(item.viewer_count)}</div>`;
+                }
+                html += `
+                    <div class="category-card ${selClass}" id="search-card-${rIdx}-${cIdx}" style="flex-shrink:0;">
+                        ${viewersHtml}
+                        <img src="${box.replace('{width}','300').replace('{height}','400')}" style="width:100%; height:100%; object-fit:cover;">
+                        <div class="card-info"><div style="font-size:20px; font-weight:bold; color:white;">${item.name}</div></div>
+                    </div>`;
+            } else if (row.type === 'channel') {
+                const thumb = item.thumbnail_url || '';
+                html += `
+                    <div class="search-channel-card ${selClass}" id="search-card-${rIdx}-${cIdx}" style="flex-shrink:0; width:350px;">
+                        <img src="${thumb.replace('{width}','150').replace('{height}','150')}" class="search-avatar">
+                        <div class="search-info">
+                            <div class="search-name">${item.display_name}</div>
+                            <div class="search-game">${item.game_name || 'Offline'}</div>
+                        </div>
+                    </div>`;
+            }
+        });
+        html += `</div></div>`;
+    });
+    html += `</div>`;
+    resultsArea.innerHTML = html;
+}
+
+function updateSearchSelection() {
+    document.querySelectorAll('#search-results-area .selected').forEach(el => el.classList.remove('selected'));
+    
+    if (searchActiveRow >= 0 && searchActiveCol >= 0) {
+        const activeCard = document.getElementById(`search-card-${searchActiveRow}-${searchActiveCol}`);
+        if (activeCard) {
+            activeCard.classList.add('selected');
+            
+            const rowDiv = document.getElementById(`search-row-${searchActiveRow}`);
+            if (rowDiv) {
+                let cardWidth = activeCard.offsetWidth + 30; // 30 is gap
+                let offset = - (searchActiveCol * cardWidth);
+                rowDiv.style.transform = `translateX(${offset}px)`;
+            }
+            activeCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+}
+
+// --- CATEGORY VIEW ---
+async function openCategoryView(category, isRefetch = false) {
+    inCategoryView = true;
+    inMenu = false;
+    currentCategoryData = category;
+    
+    const viewArea = document.getElementById('main-view-area');
+    if (!viewArea) return;
+    
+    if (!isRefetch) {
+        viewArea.innerHTML = `<div style="text-align:center; padding-top:100px; color:white;">Loading ${category.name}...</div>`;
+    }
+
+    try {
+        let langQuery = "";
+        if (categoryFilters.it) langQuery += "&language=it";
+        if (categoryFilters.en) langQuery += "&language=en";
+
+        // Clip period
+        let startedAt = "";
+        let now = new Date();
+        if (clipPeriod === '7d') {
+            startedAt = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        } else if (clipPeriod === '30d') {
+            startedAt = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        }
+
+        const streamRes = await twitchFetch(`https://api.twitch.tv/helix/streams?game_id=${category.id}&first=20${langQuery}`);
+        const streams = streamRes.data || [];
+
+        const clipRes = await twitchFetch(`https://api.twitch.tv/helix/clips?game_id=${category.id}&first=20${startedAt ? '&started_at=' + startedAt : ''}`);
+        const clips = clipRes.data || [];
+
+        categoryDataRows = [];
+        if (streams.length > 0) categoryDataRows.push({ title: 'Live Streams', type: 'stream', data: streams });
+        if (clips.length > 0) categoryDataRows.push({ title: 'Top Clips', type: 'clip', data: clips });
+
+        if (!isRefetch) {
+            categoryActiveRow = 0;
+            categoryActiveCol = 0;
+            categoryFilterIdx = 0;
+        }
+        
+        renderCategoryView();
+    } catch (e) {
+        console.error(e);
+        viewArea.innerHTML = `<div style="color:red; text-align:center; padding-top:100px;">Error loading category.</div>`;
+    }
+}
+
+function renderCategoryView() {
+    const viewArea = document.getElementById('main-view-area');
+    if (!viewArea) return;
+    const isLight = document.body.classList.contains('theme-light');
+    const titleColor = isLight ? '#000' : 'white';
+    
+    let boxThumb = currentCategoryData.box_art_url.replace('{width}','285').replace('{height}','380');
+    let bgThumb = currentCategoryData.box_art_url.replace('{width}','1200').replace('{height}','1200');
+    let viewers = formatViewers(currentCategoryData.viewer_count || 0);
+    
+    let html = `
+        <div id="category-view" style="padding-bottom:60px; position:relative;">
+            
+            <div style="position:absolute; top:0; left:0; width:100%; height:450px; 
+                        background-image:url('${bgThumb}'); 
+                        background-size:cover; 
+                        background-position:center 20%; 
+                        filter:blur(30px); 
+                        opacity:0.15; 
+                        z-index:-1;
+                        mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
+                        -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);">
+            </div>
+            
+            <div style="display:flex; align-items:flex-end; gap:35px; margin-left:80px; margin-right:80px; margin-bottom:30px; padding-top:40px;">
+                <img src="${boxThumb}" style="width:150px; height:200px; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.8); object-fit:contain; background-color:#1a1a20;">
+                <div style="padding-bottom:5px; ${isLight ? '' : 'text-shadow: 0 4px 10px rgba(0,0,0,0.8);'} flex: 1;">
+                    <h1 style="color:${titleColor}; font-size:48px; margin:0 0 8px 0; font-weight:bold;">${currentCategoryData.name}</h1>
+                    <div style="color:#bf94ff; font-size:22px; font-weight:600;">${viewers} viewers</div>
+                </div>
+                <div style="display:flex; gap:30px; padding-bottom:10px; align-items:center;">
+                    <div style="display:flex; flex-direction:column; gap:5px;">
+                        <span style="color:${isLight ? '#555' : '#adadb8'}; font-size:12px; font-weight:bold; text-transform:uppercase;">Streams</span>
+                        <div style="display:flex; gap:10px;">
+                            <div class="filter-btn ${categoryFilters.it ? 'active' : ''} ${categoryActiveRow === -1 && categoryFilterIdx === 0 ? 'focused' : ''}">ITA</div>
+                            <div class="filter-btn ${categoryFilters.en ? 'active' : ''} ${categoryActiveRow === -1 && categoryFilterIdx === 1 ? 'focused' : ''}">ENG</div>
+                        </div>
+                    </div>
+                    <div style="width:1px; height:40px; background:${isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.2)'};"></div>
+                    <div style="display:flex; flex-direction:column; gap:5px;">
+                        <span style="color:${isLight ? '#555' : '#adadb8'}; font-size:12px; font-weight:bold; text-transform:uppercase;">Clips</span>
+                        <div style="display:flex; gap:10px;">
+                            <div class="filter-btn ${clipPeriod === '7d' ? 'active' : ''} ${categoryActiveRow === -1 && categoryFilterIdx === 2 ? 'focused' : ''}">7 Giorni</div>
+                            <div class="filter-btn ${clipPeriod === '30d' ? 'active' : ''} ${categoryActiveRow === -1 && categoryFilterIdx === 3 ? 'focused' : ''}">30 Giorni</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+    `;
+    
+    categoryDataRows.forEach((row, rowIndex) => {
+        html += `<h3 style="color:${titleColor}; margin-left:80px; margin-bottom:30px; margin-top:20px; font-size:26px;">${row.title}</h3>`;
+        html += `<div style="width:100%; overflow:visible; perspective:1200px; margin-bottom:40px;">
+                    <div id="cat-row-${rowIndex}" class="channel-grid"></div>
+                 </div>`;
+    });
+    
+    html += `</div>`;
+    viewArea.innerHTML = html;
+    
+    categoryDataRows.forEach((row, rowIndex) => {
+        const rowDiv = document.getElementById(`cat-row-${rowIndex}`);
+        if (!rowDiv) return;
+        
+        row.data.forEach((item, colIndex) => {
+            const card = document.createElement('div');
+            card.className = 'channel-card';
+            card.id = `cat-card-${rowIndex}-${colIndex}`;
+            
+            if (row.type === 'stream') {
+                let thumb = item.thumbnail_url.replace('{width}','800').replace('{height}','450');
+                card.innerHTML = `
+                    <div class="badge-live">LIVE</div>
+                    <div class="badge-viewers">${formatViewers(item.viewer_count)}</div>
+                    <img src="${thumb}" style="width:100%; height:100%; object-fit:cover;">
+                    <div class="card-info">
+                        <div style="font-size:22px; font-weight:bold; color:white;">${item.user_name}</div>
+                        <div style="font-size:16px; color:#adadb8; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.title}</div>
+                    </div>`;
+            } else if (row.type === 'clip') {
+                let thumb = item.thumbnail_url;
+                card.innerHTML = `
+                    <div class="badge-viewers">${formatViewers(item.view_count)} views</div>
+                    <img src="${thumb}" style="width:100%; height:100%; object-fit:cover;">
+                    <div class="card-info">
+                        <div style="font-size:22px; font-weight:bold; color:white;">${item.title}</div>
+                        <div style="font-size:16px; color:#adadb8; margin-top:6px;">By ${item.broadcaster_name}</div>
+                    </div>`;
+            }
+            rowDiv.appendChild(card);
+        });
+    });
+    
+    updateCategorySelection();
+    
+    // Scroll to top on initial render
+    viewArea.scrollTop = 0;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function updateCategorySelection() {
+    categoryDataRows.forEach((row, rowIndex) => {
+        const rowDiv = document.getElementById(`cat-row-${rowIndex}`);
+        if (!rowDiv) return;
+        
+        let targetColIdx = (rowIndex === categoryActiveRow) ? categoryActiveCol : 0;
+        let cardWidth = 440 + 20;
+        let offset = 80 - (targetColIdx * cardWidth);
+        
+        rowDiv.style.transform = `translateX(${offset}px)`;
+        
+        Array.from(rowDiv.children).forEach((c, idx) => {
+            if (rowIndex === categoryActiveRow && idx === categoryActiveCol) {
+                c.classList.add('selected');
+            } else {
+                c.classList.remove('selected');
+            }
+        });
+    });
+    
+    // Smooth scroll to active row
+    if (categoryActiveRow >= 0) {
+        const rowEl = document.getElementById(`cat-row-${categoryActiveRow}`);
+        if (rowEl) {
+            rowEl.parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    }
+}
+
 function handleKeydown(e) {
+    const searchInput = document.getElementById('search-input');
+    if (searchInput && document.activeElement === searchInput) {
+        if (!isSearchInputFocused) {
+            isSearchInputFocused = true;
+            inMenu = false;
+        }
+    }
+
     const menuItems = document.querySelectorAll('.menu-item');
     const selectedId = menuItems[currentFocusIndex].id;
 
     if (inMenu) {
+        if (selectedId === 'menu-search') {
+            if (e.keyCode === 13 || e.keyCode === 40) {
+                // Enter or Down: go from menu to search bar
+                e.preventDefault();
+                inMenu = false;
+                isSearchInputFocused = true;
+                updateNav();
+                return;
+            }
+        }
         if (e.keyCode === 39 && currentFocusIndex < menuItems.length - 1) { currentFocusIndex++; updateNav(); loadContent(); }
         if (e.keyCode === 37 && currentFocusIndex > 0) { currentFocusIndex--; updateNav(); loadContent(); }
-        if (e.keyCode === 40) { inMenu = false; updateNav(); if (selectedId === 'menu-home') updateHomeSelection(); if (selectedId === 'menu-follow') updateFollowSelection(); if (selectedId === 'menu-settings') showSettingsScreen(); if (selectedId === 'menu-profile') showProfileScreen(); }
+        if (e.keyCode === 40 && selectedId !== 'menu-search') { inMenu = false; updateNav(); if (selectedId === 'menu-home') updateHomeSelection(); if (selectedId === 'menu-follow') updateFollowSelection(); if (selectedId === 'menu-settings') showSettingsScreen(); if (selectedId === 'menu-profile') showProfileScreen(); }
+    } else if (isSearchInputFocused) {
+        if (e.keyCode === 38) {
+            // Up arrow: back to menu
+            e.preventDefault();
+            isSearchInputFocused = false;
+            inMenu = true;
+            updateNav();
+            return;
+        }
+        if (e.keyCode === 40 && searchDataRows.length > 0) {
+            // Down arrow: go to search results
+            e.preventDefault();
+            isSearchInputFocused = false;
+            searchActiveRow = 0;
+            searchActiveCol = 0;
+            updateNav();
+            updateSearchSelection();
+            return;
+        }
+        if (e.keyCode === 37 || e.keyCode === 39) {
+            e.stopPropagation(); // Prevent TV spatial navigation from stealing focus
+            return;
+        }
+        // Typing keys pass through naturally
+        return;
     } else {
-        if (selectedId === 'menu-home') {
+        if (inCategoryView) {
+            // BACK BUTTON (Backspace=8, Escape=27, LG/Samsung Return=461/10009)
+            if (e.keyCode === 8 || e.keyCode === 27 || e.keyCode === 461 || e.keyCode === 10009) {
+                inCategoryView = false;
+                renderHome();
+                return;
+            }
+
+            if (categoryActiveRow === -1) {
+                if (e.keyCode === 39) { if (categoryFilterIdx < 3) categoryFilterIdx++; renderCategoryView(); }
+                else if (e.keyCode === 37) { if (categoryFilterIdx > 0) categoryFilterIdx--; renderCategoryView(); }
+                else if (e.keyCode === 40) { categoryActiveRow = 0; categoryActiveCol = 0; renderCategoryView(); }
+                else if (e.keyCode === 13) {
+                    if (categoryFilterIdx === 0) categoryFilters.it = !categoryFilters.it;
+                    if (categoryFilterIdx === 1) categoryFilters.en = !categoryFilters.en;
+                    if (categoryFilterIdx === 2) clipPeriod = '7d';
+                    if (categoryFilterIdx === 3) clipPeriod = '30d';
+                    openCategoryView(currentCategoryData, true);
+                }
+                return;
+            }
+
+            if (e.keyCode === 39) {
+                if (categoryActiveCol < categoryDataRows[categoryActiveRow].data.length - 1) categoryActiveCol++;
+                updateCategorySelection();
+            } else if (e.keyCode === 37) {
+                if (categoryActiveCol > 0) categoryActiveCol--;
+                updateCategorySelection();
+            } else if (e.keyCode === 40) {
+                if (categoryActiveRow < categoryDataRows.length - 1) {
+                    categoryActiveRow++;
+                    categoryActiveCol = 0;
+                    updateCategorySelection();
+                }
+            } else if (e.keyCode === 38) {
+                if (categoryActiveRow > 0) {
+                    categoryActiveRow--;
+                    categoryActiveCol = 0;
+                    updateCategorySelection();
+                } else {
+                    categoryActiveRow = -1;
+                    renderCategoryView();
+                }
+            } else if (e.keyCode === 13) {
+                const item = categoryDataRows[categoryActiveRow].data[categoryActiveCol];
+                if (categoryDataRows[categoryActiveRow].type === 'stream') {
+                    window.open(`https://www.twitch.tv/${item.user_name}`, '_blank');
+                } else if (categoryDataRows[categoryActiveRow].type === 'clip') {
+                    window.open(item.url, '_blank');
+                }
+            }
+            return;
+        }
+        if (selectedId === 'menu-search') {
+            if (searchDataRows.length === 0 || searchActiveRow < 0) return;
+            const currentRow = searchDataRows[searchActiveRow];
+            if (e.keyCode === 39) {
+                if (searchActiveCol < currentRow.data.length - 1) { searchActiveCol++; updateSearchSelection(); }
+            } else if (e.keyCode === 37) {
+                if (searchActiveCol > 0) { searchActiveCol--; updateSearchSelection(); }
+            } else if (e.keyCode === 40) {
+                if (searchActiveRow < searchDataRows.length - 1) {
+                    searchActiveRow++;
+                    searchActiveCol = 0;
+                    updateSearchSelection();
+                }
+            } else if (e.keyCode === 38) {
+                if (searchActiveRow > 0) {
+                    searchActiveRow--;
+                    searchActiveCol = 0;
+                    updateSearchSelection();
+                } else {
+                    isSearchInputFocused = true;
+                    searchActiveRow = -1;
+                    updateSearchSelection();
+                    updateNav();
+                }
+            } else if (e.keyCode === 13) {
+                const item = currentRow.data[searchActiveCol];
+                if (currentRow.type === 'category') {
+                    openCategoryView(item);
+                } else {
+                    const login = item.broadcaster_login || item.user_login || item.display_name;
+                    window.open(`https://www.twitch.tv/${login}`, '_blank');
+                }
+            }
+        } else if (selectedId === 'menu-home') {
             const currentRowData = homeDataRows[activeRow];
             if (!currentRowData) return;
             const currentLen = currentRowData.data.length;
@@ -579,7 +1126,17 @@ function handleKeydown(e) {
             }
             if (e.keyCode === 40 && activeRow < homeDataRows.length - 1) { activeRow++; updateHomeSelection(); }
             if (e.keyCode === 38) { if (activeRow > 0) { activeRow--; updateHomeSelection(); } else { inMenu = true; updateNav(); updateHomeSelection(); } }
-            if (e.keyCode === 13 && currentRowData.type === 'login_btn') { currentFocusIndex = 4; inMenu = true; updateNav(); loadContent(); }
+            if (e.keyCode === 13) {
+                if (currentRowData.type === 'login_btn') {
+                    currentFocusIndex = 4; inMenu = true; updateNav(); loadContent();
+                } else if (currentRowData.type === 'category') {
+                    const selectedCategory = currentRowData.data[colIndices[activeRow]];
+                    openCategoryView(selectedCategory);
+                } else if (currentRowData.type === 'stream') {
+                    const selectedStream = currentRowData.data[colIndices[activeRow]];
+                    window.open(`https://www.twitch.tv/${selectedStream.user_name}`, '_blank');
+                }
+            }
         } else if (selectedId === 'menu-follow') {
             if (followDataRows.length === 0) return;
             const currentRowData = followDataRows[followActiveRow];
