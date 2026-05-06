@@ -1,31 +1,54 @@
-/* --- RESET E BASI --- */
 body, html {
     margin: 0;
     padding: 0;
     width: 100%;
-    height: 100%;
+    min-height: 100%;
     background-color: #0e0e10; /* Nero Twitch */
     color: #efeff1;
     font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    overflow: hidden; /* Evita scroll bar indesiderate sulla TV */
+    overflow-x: hidden; /* Evita scroll bar indesiderate orizzontali sulla TV */
+    transition: background-color 0.3s;
+}
+
+/* Nascondiamo la scrollbar nativa per estetica TV */
+::-webkit-scrollbar {
+    display: none;
+}
+
+body.theme-light {
+    background-color: #f7f7f8;
+    color: #0e0e10;
 }
 
 #app-container {
     display: flex;
     flex-direction: column;
     width: 100%;
-    height: 100%;
+    min-height: 100%;
 }
 
 /* --- TOPBAR E MENU --- */
 #topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 140px;
     display: flex;
     align-items: center;
     padding: 0 80px;
     box-sizing: border-box;
-    z-index: 10;
+    z-index: 100;
+    background: linear-gradient(to bottom, rgba(14, 14, 16, 1) 0%, rgba(14, 14, 16, 0) 100%);
+    transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+body.theme-light #topbar {
+    background: linear-gradient(to bottom, rgba(247, 247, 248, 1) 0%, rgba(247, 247, 248, 0) 100%);
+}
+
+#topbar.hidden-topbar {
+    transform: translateY(-140px);
 }
 
 #main-menu {
@@ -34,6 +57,8 @@ body, html {
     align-items: center;
     width: 100%;
     gap: 20px;
+    justify-content: flex-start;
+    transition: justify-content 0.3s ease;
 }
 
 /* L'indicatore bianco che scivola sotto i tasti */
@@ -46,6 +71,10 @@ body, html {
     transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
     box-shadow: 0 10px 30px rgba(255, 255, 255, 0.2);
     opacity: 1;
+}
+
+body.theme-light #nav-indicator {
+    background-color: #9146FF;
 }
 
 .menu-item {
@@ -63,9 +92,14 @@ body, html {
     transition: all 0.4s ease;
 }
 
+body.theme-light .menu-item {
+    color: #53535f;
+}
+
 /* Allineamento a destra dell'omino */
 #menu-profile {
-    margin-left: auto;
+    position: absolute;
+    right: 0;
 }
 
 /* Quando il testo è sopra l'indicatore bianco */
@@ -73,6 +107,10 @@ body, html {
     color: #000000;
     font-weight: 500;
     transform: scale(1.1);
+}
+
+body.theme-light .menu-item.active-text {
+    color: #ffffff;
 }
 
 .icon-search, .icon-profile {
@@ -83,7 +121,7 @@ body, html {
 /* --- AREA CONTENUTI --- */
 #content {
     flex-grow: 1;
-    padding: 20px 0;
+    padding: 140px 0 20px 0;
     display: flex;
     flex-direction: column;
 }
@@ -99,67 +137,196 @@ body, html {
 }
 
 /* --- CAROSELLO LIVE (HOME) --- */
-#carousel-outer {
-    width: 100%;
-    overflow: visible;
-    perspective: 1000px;
-}
-
-#channel-grid {
+.channel-grid {
     display: flex;
     align-items: center;
-    gap: 60px;
+    gap: 15px;
     transition: transform 0.7s cubic-bezier(0.23, 1, 0.32, 1);
     will-change: transform;
 }
 
+/* Griglia hero con allineamento verticale in basso per l'effetto arc */
+.channel-grid.hero-grid {
+    align-items: flex-end;
+    gap: 15px;
+    min-height: 480px;
+    padding-bottom: 20px;
+}
+
 /* Stile delle card non selezionate */
-.channel-card {
-    min-width: 640px;
-    height: 360px;
+.channel-card, .category-card {
     background-color: #1f1f23;
-    border-radius: 20px;
+    border-radius: 16px;
     overflow: hidden;
     position: relative;
     transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
-    opacity: 0.3;
-    transform: scale(0.85);
-    filter: blur(2px);
+    opacity: 0.6;
+    transform: scale(0.9);
     box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    flex-shrink: 0;
 }
 
-/* Card centrale selezionata */
-.channel-card.selected {
-    opacity: 1;
-    transform: scale(1.1);
-    filter: blur(0);
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 20px rgba(145, 70, 255, 0.4);
+body.theme-light .channel-card, body.theme-light .category-card {
+    background-color: #ffffff;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+}
+
+/* Live normali (non hero) */
+.channel-card {
+    width: 440px;
+    height: 248px;
+}
+
+/* Categorie */
+.category-card {
+    width: 200px;
+    height: 267px;
+}
+
+/* --- HERO ROW (prima riga: Live Consigliate) --- */
+/* Card hero base (non selezionata) — più grandi delle normali */
+.hero-card {
+    width: 640px;
+    height: 360px;
+    transform: scale(0.75);
+    opacity: 0.5;
+}
+
+/* Card hero selezionata — ancora più grande, al centro */
+.hero-card.selected {
+    transform: scale(1.15) !important;
+    opacity: 1 !important;
+    z-index: 10;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.9), 0 0 40px rgba(145, 70, 255, 0.5) !important;
     border: 4px solid #bf94ff;
 }
 
+/* Card hero adiacenti alla selezionata (a sinistra e a destra) */
+.hero-card.hero-adjacent {
+    transform: scale(0.85);
+    opacity: 0.7;
+}
+
+/* Card centrale selezionata (non hero) */
+.channel-card.selected, .category-card.selected {
+    opacity: 1;
+    transform: scale(1.05);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 20px rgba(145, 70, 255, 0.4);
+    border: 4px solid #bf94ff;
+    z-index: 5;
+}
+
+body.theme-light .channel-card.selected, body.theme-light .category-card.selected {
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2), 0 0 20px rgba(145, 70, 255, 0.4);
+}
+
+/* --- SETTINGS BUTTONS --- */
+.settings-btn {
+    padding: 20px 40px;
+    background-color: #1f1f23;
+    color: white;
+    border-radius: 50px;
+    font-size: 20px;
+    border: 4px solid transparent;
+    transition: all 0.3s ease;
+    min-width: 200px;
+    text-align: center;
+}
+
+body.theme-light .settings-btn {
+    background-color: #e5e5e5;
+    color: #0e0e10;
+}
+
+.settings-btn.focused {
+    border-color: #bf94ff;
+    transform: scale(1.1);
+    background-color: #3a3a40;
+    box-shadow: 0 0 20px rgba(145, 70, 255, 0.4);
+}
+
+body.theme-light .settings-btn.focused {
+    background-color: #ffffff;
+}
+
+.settings-btn.active-setting {
+    background-color: #9146FF;
+    color: white;
+}
+
+/* --- LOGIN BUTTON (nella Home quando non sei loggato) --- */
+.login-home-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 500px;
+    height: 80px;
+    font-size: 24px;
+    flex-shrink: 0;
+    background-color: #9146FF;
+    color: white;
+    border-radius: 50px;
+    border: 4px solid transparent;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    opacity: 1;
+    transform: scale(1);
+}
+
+.login-home-btn.focused {
+    transform: scale(1.1);
+    border-color: #bf94ff;
+    box-shadow: 0 0 30px rgba(145, 70, 255, 0.5);
+}
+
+/* --- CARD INFO OVERLAY --- */
 .card-info {
     position: absolute;
     bottom: 0;
     width: 100%;
-    padding: 30px;
+    padding: 20px;
     background: linear-gradient(transparent, rgba(0,0,0,0.95));
     box-sizing: border-box;
 }
 
 .badge-live {
     position: absolute;
-    top: 20px;
-    left: 20px;
+    top: 15px;
+    left: 15px;
     background: #eb0400;
     color: white;
-    padding: 5px 12px;
+    padding: 4px 10px;
     border-radius: 4px;
     font-weight: bold;
-    font-size: 14px;
+    font-size: 13px;
     z-index: 2;
 }
 
-/* --- PAGINA PROFILO / SETTINGS --- */
+.badge-viewers {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: rgba(0,0,0,0.6);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 13px;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.badge-viewers::before {
+    content: '';
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background-color: #eb0400;
+    border-radius: 50%;
+}
+
+/* --- PAGINA PROFILO --- */
 .logout-container {
     text-align: center;
     width: 100%;
@@ -179,14 +346,13 @@ body, html {
     transition: all 0.3s ease;
 }
 
-/* Effetto focus sul tasto esci */
 .logout-btn.focused {
     transform: scale(1.1);
     border-color: white;
     box-shadow: 0 0 30px rgba(235, 4, 0, 0.5);
 }
 
-/* Messaggi di stato (Caricamento, Codice) */
+/* Messaggi di stato */
 .status-msg {
     color: white;
     text-align: center;
@@ -195,12 +361,6 @@ body, html {
     margin-top: 50px;
 }
 
-.device-code {
-    font-size: 80px;
-    font-weight: bold;
-    color: white;
-    margin: 40px 0;
-    letter-spacing: 15px;
-    text-align: center;
-    width: 100%;
+body.theme-light .status-msg {
+    color: #0e0e10;
 }
