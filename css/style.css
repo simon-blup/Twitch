@@ -3,15 +3,13 @@ html {
     margin: 0;
     padding: 0;
     width: 100%;
-    min-height: 100%;
+    height: 100%;
     background-color: #0e0e10;
-    /* Nero Twitch */
     color: #efeff1;
     font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     overflow-x: hidden;
     transition: background-color 0.3s;
     scroll-behavior: smooth;
-    /* Aggiunto per fluidità scorrimento verticale */
 }
 
 ::-webkit-scrollbar {
@@ -27,7 +25,11 @@ body.theme-light {
     display: flex;
     flex-direction: column;
     width: 100%;
-    min-height: 100%;
+    min-height: 100vh;
+}
+
+body.theme-light #app-container {
+    background-color: #f7f7f8;
 }
 
 /* --- TOPBAR E MENU --- */
@@ -61,7 +63,6 @@ body.theme-light #topbar {
     width: 100%;
     gap: 20px;
     justify-content: center;
-    /* Default al centro */
     transition: justify-content 0.3s ease;
 }
 
@@ -127,6 +128,7 @@ body.theme-light .menu-item.active-text {
     display: flex;
     flex-direction: column;
     transition: padding-top 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+    min-height: 100vh;
 }
 
 body.menu-hidden #content {
@@ -193,21 +195,28 @@ body.theme-light .category-card {
 .hero-card {
     width: 800px;
     height: 450px;
-    transform: scale(0.8);
-    opacity: 0.5;
+    transform: scale(0.75);
+    opacity: 0.3;
 }
 
 .hero-card.selected {
     transform: scale(1.1) !important;
     opacity: 1 !important;
     z-index: 10;
-    box-shadow: 0 30px 100px rgba(0, 0, 0, 0.9), 0 0 50px rgba(145, 70, 255, 0.6) !important;
+    box-shadow: 0 40px 120px rgba(0, 0, 0, 0.9), 0 0 60px rgba(145, 70, 255, 0.6) !important;
     border: 5px solid #bf94ff;
 }
 
+.hero-card.hero-center {
+    transform: scale(1.1);
+    opacity: 1;
+    z-index: 9;
+    box-shadow: 0 30px 90px rgba(0, 0, 0, 0.8);
+}
+
 .hero-card.hero-adjacent {
-    transform: scale(0.9);
-    opacity: 0.75;
+    transform: scale(0.85);
+    opacity: 0.6;
 }
 
 .channel-card.selected,
@@ -235,6 +244,18 @@ body.theme-light .category-card {
 body.theme-light .settings-btn {
     background-color: #e5e5e5;
     color: #0e0e10;
+}
+
+body.theme-light .settings-btn.focused {
+    background-color: #ffffff;
+    color: #9146FF;
+    border-color: #9146FF;
+    box-shadow: 0 0 25px rgba(145, 70, 255, 0.4);
+}
+
+body.theme-light .settings-btn.active-setting {
+    background-color: #9146FF;
+    color: white;
 }
 
 .settings-btn.focused {
@@ -268,7 +289,6 @@ body.theme-light .settings-btn {
     background-color: #a970ff;
     box-shadow: 0 0 25px rgba(145, 70, 255, 0.8);
 }
-
 
 .card-info {
     position: absolute;
@@ -344,14 +364,30 @@ body.theme-light .settings-btn {
     margin-top: 60px;
 }
 
-/* --- ACTIVATION SCREEN --- */
+body.theme-light .status-msg {
+    color: #0e0e10;
+}
+
+/* --- FULL PAGE SCREENS (settings, profile, follow empty) --- */
+.full-page-screen,
 .activation-container {
+    position: fixed;
+    top: 140px;
+    left: 0;
+    height: calc(100vh - 140px);
+    width: 100%;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 60vh;
-    width: 100%;
+    z-index: 50;
+    transition: top 0.5s cubic-bezier(0.23, 1, 0.32, 1), height 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+body.menu-hidden .full-page-screen,
+body.menu-hidden .activation-container {
+    top: 40px;
+    height: calc(100vh - 40px);
 }
 
 .activation-box {

@@ -4,7 +4,7 @@ let refreshToken = localStorage.getItem('twitch_refresh_token') || '';
 let userId = localStorage.getItem('twitch_user_id') || '';
 
 // Default barPos is 'center'
-let appSettings = JSON.parse(localStorage.getItem('twitch_settings')) || { barPos: 'center', theme: 'dark' };
+let appSettings = JSON.parse(localStorage.getItem('twitch_settings')) || { barPos: 'center', theme: 'dark', performanceMode: false };
 
 let currentFocusIndex = 1; // 0: Search, 1: Home, 2: Settings, 3: Profile
 let inMenu = true;
@@ -113,6 +113,18 @@ async function loadContent() {
     if (viewArea) viewArea.innerHTML = `<div style="text-align:center; padding-top:100px; color:white;">Loading...</div>`;
 
     if (selectedId === 'menu-home') {
+        if (appSettings.performanceMode) {
+            // In performance mode, skip home, go to follow
+            const menuItems2 = document.querySelectorAll('.menu-item');
+            for (let i = 0; i < menuItems2.length; i++) {
+                if (menuItems2[i].id === 'menu-follow') { currentFocusIndex = i; break; }
+            }
+            updateNav();
+            followActiveRow = 0;
+            followActiveCol = 0;
+            await getFollowData();
+            return;
+        }
         activeRow = 0;
         await getTwitchHome();
     } else if (selectedId === 'menu-follow') {
@@ -121,10 +133,10 @@ async function loadContent() {
         await getFollowData();
     } else if (selectedId === 'menu-settings') {
         settingsRow = 0;
-        // 0: Center, 1: Left (invertiti come richiesto)
         settingsCol = [
             appSettings.barPos === 'center' ? 0 : 1,
-            appSettings.theme === 'dark' ? 0 : 1
+            appSettings.theme === 'dark' ? 0 : 1,
+            appSettings.performanceMode ? 0 : 1
         ];
         showSettingsScreen();
     } else if (selectedId === 'menu-profile') {
@@ -139,7 +151,6 @@ async function getTwitchHome() {
         const recRes = await twitchFetch('https://api.twitch.tv/helix/streams?first=10');
         if (recRes.data && recRes.data.length > 0) {
             originalHeroCount = recRes.data.length;
-            // Triplichiamo i dati per il loop infinito
             const loopedData = [...recRes.data, ...recRes.data, ...recRes.data];
             homeDataRows.push({ title: "", type: "stream", data: loopedData, isHero: true });
         }
@@ -159,20 +170,23 @@ async function getTwitchHome() {
         // 3. Top Categories
         const catRes = await twitchFetch('https://api.twitch.tv/helix/games/top?first=10');
         if (catRes.data && catRes.data.length > 0) {
+            const catPromises = catRes.data.map(async (cat) => {
+                try {
+                    const stRes = await twitchFetch(`https://api.twitch.tv/helix/streams?game_id=${cat.id}&first=100`);
+                    let viewers = 0;
+                    if (stRes && stRes.data) {
+                        viewers = stRes.data.reduce((sum, stream) => sum + stream.viewer_count, 0);
+                    }
+                    cat.viewer_count = viewers;
+                } catch(e) { cat.viewer_count = 0; }
+                return cat;
+            });
+            await Promise.all(catPromises);
             homeDataRows.push({ title: "Categories", type: "category", data: catRes.data });
-            const top4 = catRes.data.slice(0, 4);
-            for (const cat of top4) {
-                const catStreams = await twitchFetch(`https://api.twitch.tv/helix/streams?game_id=${cat.id}&first=10`);
-                if (catStreams.data && catStreams.data.length > 0) {
-                    catStreams.data.sort((a, b) => b.viewer_count - a.viewer_count);
-                    homeDataRows.push({ title: cat.name, type: "stream", data: catStreams.data });
-                }
-            }
         }
 
         colIndices = new Array(homeDataRows.length).fill(0);
         if (homeDataRows[0] && homeDataRows[0].isHero) {
-            // Partiamo dal set centrale di dati hero
             colIndices[0] = originalHeroCount;
         }
         renderHome();
@@ -192,11 +206,12 @@ function renderHome() {
     let html = '<div id="home-view" style="padding-bottom:60vh;">';
     homeDataRows.forEach((row, rowIndex) => {
         if (row.title) {
-            html += `<h3 style="color:${titleColor}; margin-left:80px; margin-bottom:15px; font-size:26px;">${row.title}</h3>`;
+            html += `<h3 style="color:${titleColor}; margin-left:80px; margin-bottom:30px; font-size:26px;">${row.title}</h3>`;
         }
-        const gridClass = row.isHero ? 'channel-grid hero-grid' : 'channel-grid';
+        const gridClass = row.type === 'login_btn' ? 'full-page-screen' : (row.isHero ? 'channel-grid hero-grid' : 'channel-grid');
+        const wrapperStyle = row.type === 'login_btn' ? '' : 'width:100%; overflow:visible; perspective:1200px; margin-bottom:40px;';
         html += `
-            <div style="width:100%; overflow:visible; perspective:1200px; margin-bottom:40px;">
+            <div style="${wrapperStyle}">
                 <div id="row-${rowIndex}" class="${gridClass}"></div>
             </div>
         `;
@@ -209,10 +224,6 @@ function renderHome() {
         if (!rowDiv) return;
 
         if (row.type === 'login_btn') {
-            rowDiv.style.width = '100%';
-            rowDiv.style.height = '60vh';
-            rowDiv.style.justifyContent = 'center';
-            rowDiv.style.transform = 'none';
             const card = document.createElement('div');
             card.className = 'login-btn';
             card.innerHTML = 'Go to Profile to Log In';
@@ -222,7 +233,14 @@ function renderHome() {
                 const card = document.createElement('div');
                 card.className = 'category-card';
                 let thumb = item.box_art_url.replace('{width}', '300').replace('{height}', '400');
+                
+                let viewersHtml = '';
+                if (item.viewer_count !== undefined) {
+                    viewersHtml = `<div class="badge-viewers">${formatViewers(item.viewer_count)}</div>`;
+                }
+
                 card.innerHTML = `
+                    ${viewersHtml}
                     <img src="${thumb}" style="width:100%; height:100%; object-fit:cover;">
                     <div class="card-info"><div style="font-size:20px; font-weight:bold; color:white;">${item.name}</div></div>`;
                 rowDiv.appendChild(card);
@@ -267,10 +285,13 @@ function updateHomeSelection() {
 
         const cards = rowDiv.querySelectorAll(row.type === 'category' ? '.category-card' : '.channel-card');
         cards.forEach((c, i) => {
-            c.classList.remove('selected', 'hero-adjacent');
+            c.classList.remove('selected', 'hero-adjacent', 'hero-center');
             if (row.isHero) {
-                if (isActiveRow && i === currentColIdx) c.classList.add('selected');
-                else if (isActiveRow && (i === currentColIdx - 1 || i === currentColIdx + 1)) c.classList.add('hero-adjacent');
+                if (i === currentColIdx) {
+                    c.classList.add('hero-center');
+                    if (isActiveRow) c.classList.add('selected');
+                }
+                else if (i === currentColIdx - 1 || i === currentColIdx + 1) c.classList.add('hero-adjacent');
             } else {
                 c.classList.toggle('selected', isActiveRow && i === currentColIdx);
             }
@@ -292,10 +313,10 @@ function updateHomeSelection() {
         }
     });
 
-    if (!inMenu && activeRow > 0) {
+    if (!inMenu) {
         const rowEl = document.getElementById(`row-${activeRow}`);
-        if (rowEl) {
-            rowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (rowEl && rowEl.parentElement) {
+            rowEl.parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     } else {
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -330,17 +351,17 @@ function renderFollowScreen() {
     const viewArea = document.getElementById('main-view-area');
     if (!viewArea) return;
     
-    let html = '<div id="follow-view" style="padding-bottom:60vh; display:flex; flex-direction:column; align-items:center; gap:40px;">';
+    let html = '<div id="follow-view" style="padding-top:60px; padding-bottom:60vh; display:flex; flex-direction:column; align-items:center; gap:20px;">';
     followDataRows.forEach((row, rowIndex) => {
         if (row.type === 'login_btn') {
             html += `
-            <div style="display:flex; justify-content:center; align-items:center; height:60vh; width:100%;">
+            <div class="full-page-screen">
                 <div class="login-btn ${!inMenu ? 'focused' : ''}">Go to Profile to Log In</div>
             </div>`;
         } else if (row.type === 'empty') {
             html += `<div style="color:white; font-size:30px; margin-top:100px;">No followed channels are live right now.</div>`;
         } else if (row.type === 'stream') {
-            html += `<div id="follow-row-${rowIndex}" class="channel-grid" style="justify-content:center; width: 100%;">`;
+            html += `<div id="follow-row-${rowIndex}" class="channel-grid" style="justify-content:flex-start; width: 1830px; gap: 15px;">`;
             row.data.forEach((item, colIndex) => {
                 let thumb = item.thumbnail_url.replace('{width}', '600').replace('{height}', '338');
                 const viewers = formatViewers(item.viewer_count);
@@ -379,7 +400,10 @@ function updateFollowSelection() {
         const card = document.getElementById(`follow-card-${followActiveRow}-${followActiveCol}`);
         if (card) {
             card.classList.add('selected');
-            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        const rowEl = document.getElementById(`follow-row-${followActiveRow}`);
+        if (rowEl) {
+            rowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     } else {
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -393,26 +417,35 @@ function showSettingsScreen() {
 
     if (!userToken) {
         viewArea.innerHTML = `
-            <div style="display:flex; justify-content:center; align-items:center; height:60vh; width:100%;">
+            <div class="full-page-screen">
                 <div class="login-btn ${!inMenu ? 'focused' : ''}">Go to Profile to Log In</div>
             </div>`;
         return;
     }
 
     viewArea.innerHTML = `
-        <div style="text-align:center; padding-top:100px; padding-bottom:100px;">
-            <div style="margin-top:60px;">
-                <h3 style="color:${textColor}; margin-bottom:20px;">Bar Position</h3>
-                <div style="display:flex; justify-content:center; gap:40px;">
-                    <div class="settings-btn ${(!inMenu && settingsRow === 0 && settingsCol[0] === 0) ? 'focused' : ''} ${appSettings.barPos === 'center' ? 'active-setting' : ''}">Top Center</div>
-                    <div class="settings-btn ${(!inMenu && settingsRow === 0 && settingsCol[0] === 1) ? 'focused' : ''} ${appSettings.barPos === 'left' ? 'active-setting' : ''}">Top Left</div>
+        <div class="full-page-screen">
+            <div style="display:flex; flex-direction:column; gap:60px; width:100%;">
+                <div>
+                    <h3 style="color:${textColor}; margin-bottom:20px; text-align:center;">Bar Position</h3>
+                    <div style="display:flex; justify-content:center; gap:40px;">
+                        <div class="settings-btn ${(!inMenu && settingsRow === 0 && settingsCol[0] === 0) ? 'focused' : ''} ${appSettings.barPos === 'center' ? 'active-setting' : ''}">Top Center</div>
+                        <div class="settings-btn ${(!inMenu && settingsRow === 0 && settingsCol[0] === 1) ? 'focused' : ''} ${appSettings.barPos === 'left' ? 'active-setting' : ''}">Top Left</div>
+                    </div>
                 </div>
-            </div>
-            <div style="margin-top:60px;">
-                <h3 style="color:${textColor}; margin-bottom:20px;">Theme</h3>
-                <div style="display:flex; justify-content:center; gap:40px;">
-                    <div class="settings-btn ${(!inMenu && settingsRow === 1 && settingsCol[1] === 0) ? 'focused' : ''} ${appSettings.theme === 'dark' ? 'active-setting' : ''}">Dark</div>
-                    <div class="settings-btn ${(!inMenu && settingsRow === 1 && settingsCol[1] === 1) ? 'focused' : ''} ${appSettings.theme === 'light' ? 'active-setting' : ''}">Light</div>
+                <div>
+                    <h3 style="color:${textColor}; margin-bottom:20px; text-align:center;">Theme</h3>
+                    <div style="display:flex; justify-content:center; gap:40px;">
+                        <div class="settings-btn ${(!inMenu && settingsRow === 1 && settingsCol[1] === 0) ? 'focused' : ''} ${appSettings.theme === 'dark' ? 'active-setting' : ''}">Dark</div>
+                        <div class="settings-btn ${(!inMenu && settingsRow === 1 && settingsCol[1] === 1) ? 'focused' : ''} ${appSettings.theme === 'light' ? 'active-setting' : ''}">Light</div>
+                    </div>
+                </div>
+                <div>
+                    <h3 style="color:${textColor}; margin-bottom:20px; text-align:center;">Performance Mode</h3>
+                    <div style="display:flex; justify-content:center; gap:40px;">
+                        <div class="settings-btn ${(!inMenu && settingsRow === 2 && settingsCol[2] === 0) ? 'focused' : ''} ${appSettings.performanceMode ? 'active-setting' : ''}">On</div>
+                        <div class="settings-btn ${(!inMenu && settingsRow === 2 && settingsCol[2] === 1) ? 'focused' : ''} ${!appSettings.performanceMode ? 'active-setting' : ''}">Off</div>
+                    </div>
                 </div>
             </div>
         </div>`;
@@ -429,9 +462,9 @@ async function showProfileScreen() {
             const user = res.data && res.data[0];
             const userName = user ? user.display_name : "Unknown User";
             viewArea.innerHTML = `
-                <div style="text-align:center; min-width:100vw; padding-top:100px;">
-                    <h1 style="color:${textColor}; font-size:48px;">Hello, ${userName}!</h1>
-                    <div class="logout-btn ${!inMenu ? 'focused' : ''}">LOG OUT</div>
+                <div class="full-page-screen">
+                    <h1 style="color:${textColor}; font-size:48px; margin-bottom: 20px;">Hello, ${userName}!</h1>
+                    <div class="logout-btn ${!inMenu ? 'focused' : ''}" style="margin-top: 0;">LOG OUT</div>
                 </div>`;
         } catch (e) { console.error(e); }
     } else { startDeviceFlow(); }
@@ -558,12 +591,10 @@ function handleKeydown(e) {
             if (e.keyCode === 39) {
                 if (followActiveCol < currentRowData.data.length - 1) followActiveCol++;
                 updateFollowSelection();
-            }
-            if (e.keyCode === 37) {
+            } else if (e.keyCode === 37) {
                 if (followActiveCol > 0) followActiveCol--;
                 updateFollowSelection();
-            }
-            if (e.keyCode === 40) {
+            } else if (e.keyCode === 40) {
                 if (followActiveRow < followDataRows.length - 1) {
                     followActiveRow++;
                     if (followActiveCol >= followDataRows[followActiveRow].data.length) {
@@ -571,8 +602,7 @@ function handleKeydown(e) {
                     }
                     updateFollowSelection();
                 }
-            }
-            if (e.keyCode === 38) {
+            } else if (e.keyCode === 38) {
                 if (followActiveRow > 0) {
                     followActiveRow--;
                     if (followActiveCol >= followDataRows[followActiveRow].data.length) {
@@ -590,12 +620,13 @@ function handleKeydown(e) {
                 return;
             }
             if (e.keyCode === 39 && settingsCol[settingsRow] < 1) { settingsCol[settingsRow]++; showSettingsScreen(); }
-            if (e.keyCode === 37 && settingsCol[settingsRow] > 0) { settingsCol[settingsRow]--; showSettingsScreen(); }
-            if (e.keyCode === 40 && settingsRow < 1) { settingsRow++; showSettingsScreen(); }
-            if (e.keyCode === 38) { if (settingsRow > 0) { settingsRow--; showSettingsScreen(); } else { inMenu = true; updateNav(); showSettingsScreen(); } }
-            if (e.keyCode === 13) {
+            else if (e.keyCode === 37 && settingsCol[settingsRow] > 0) { settingsCol[settingsRow]--; showSettingsScreen(); }
+            else if (e.keyCode === 40 && settingsRow < 2) { settingsRow++; showSettingsScreen(); }
+            else if (e.keyCode === 38) { if (settingsRow > 0) { settingsRow--; showSettingsScreen(); } else { inMenu = true; updateNav(); showSettingsScreen(); } }
+            else if (e.keyCode === 13) {
                 if (settingsRow === 0) appSettings.barPos = settingsCol[0] === 0 ? 'center' : 'left';
                 else if (settingsRow === 1) appSettings.theme = settingsCol[1] === 0 ? 'dark' : 'light';
+                else if (settingsRow === 2) appSettings.performanceMode = settingsCol[2] === 0;
                 saveSettings(); showSettingsScreen(); setTimeout(updateNav, 50);
             }
         } else if (selectedId === 'menu-profile') {
