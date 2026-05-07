@@ -46,6 +46,16 @@ let categoryFilters = { it: true, en: true };
 let categoryFilterIdx = 0;
 let clipPeriod = '7d';
 
+// Per gestire Channel View
+let inChannelView = false;
+let channelViewData = null;
+let channelViewActiveRow = 0; // -1: Header Follow btn, 0: VODs, 1: Clip Filters, 2: Clips
+let channelViewActiveCol = 0;
+let channelViewColIndices = {0: 0, 2: 0};
+let channelClipFilter = '7d'; // '7d' o '30d'
+let channelClipFilterIdx = 0;
+let channelIsFollowing = false;
+
 window.onload = async function () {
     applySettings();
     if (userToken) {
@@ -831,6 +841,215 @@ function updateSearchSelection() {
     }
 }
 
+// --- CHANNEL PROFILE VIEW ---
+async function openChannelView(loginName, isRefetch = false) {
+    inChannelView = true;
+    inMenu = false;
+    
+    const viewArea = document.getElementById('main-view-area');
+    if (!viewArea) return;
+    
+    if (!isRefetch) {
+        viewArea.innerHTML = `<div style="text-align:center; padding-top:100px; color:white;">Loading ${loginName}...</div>`;
+        channelViewActiveRow = 0;
+        channelViewActiveCol = 0;
+        channelViewColIndices = {0: 0, 2: 0};
+        channelClipFilter = '7d';
+        channelClipFilterIdx = 0;
+    }
+
+    try {
+        // 1. User Info
+        const userRes = await twitchFetch(`https://api.twitch.tv/helix/users?login=${loginName}`);
+        const user = userRes.data[0];
+        if (!user) throw new Error("User not found");
+
+        // 2. Follower count & status
+        const folRes = await twitchFetch(`https://api.twitch.tv/helix/channels/followers?broadcaster_id=${user.id}`);
+        user.follower_count = folRes.total || 0;
+        
+        if (userId && userToken) {
+            const isFolRes = await twitchFetch(`https://api.twitch.tv/helix/channels/followed?user_id=${userId}&broadcaster_id=${user.id}`);
+            channelIsFollowing = isFolRes.data && isFolRes.data.length > 0;
+        }
+
+        // 3. Live Stream
+        const streamRes = await twitchFetch(`https://api.twitch.tv/helix/streams?user_id=${user.id}`);
+        const isLive = streamRes.data && streamRes.data.length > 0;
+        const liveStream = isLive ? streamRes.data[0] : null;
+
+        // 4. VODs
+        const vodRes = await twitchFetch(`https://api.twitch.tv/helix/videos?user_id=${user.id}&type=archive&first=20`);
+        let vods = vodRes.data || [];
+        
+        let combinedVods = [];
+        if (isLive) {
+            combinedVods.push({ isLiveItem: true, ...liveStream });
+        }
+        combinedVods = combinedVods.concat(vods);
+
+        // 5. Clips
+        let startedAt = "";
+        let now = new Date();
+        if (channelClipFilter === '7d') {
+            startedAt = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        } else if (channelClipFilter === '30d') {
+            startedAt = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+        }
+        const clipRes = await twitchFetch(`https://api.twitch.tv/helix/clips?broadcaster_id=${user.id}&first=20&started_at=${startedAt}`);
+        let clips = clipRes.data || [];
+
+        channelViewData = {
+            user,
+            isLive,
+            vods: combinedVods,
+            clips
+        };
+
+        renderChannelView();
+    } catch (e) {
+        console.error(e);
+        viewArea.innerHTML = `<div style="color:red; text-align:center; padding-top:100px;">Error loading channel.</div>`;
+    }
+}
+
+function renderChannelView() {
+    const viewArea = document.getElementById('main-view-area');
+    if (!viewArea) return;
+    const isLight = document.body.classList.contains('theme-light');
+    const titleColor = isLight ? '#000' : 'white';
+    
+    const user = channelViewData.user;
+    const isLive = channelViewData.isLive;
+    
+    let html = `<div id="channel-view" style="padding-bottom:60px; position:relative;">`;
+    
+    // Header
+    html += `
+        <div class="channel-header">
+            <div class="channel-avatar-container">
+                <img src="${user.profile_image_url}" class="channel-avatar-large ${isLive ? 'is-live' : ''}" />
+                ${isLive ? '<div class="live-badge-avatar">LIVE</div>' : ''}
+            </div>
+            <div class="channel-info-wrapper">
+                <h1 class="channel-name-large">${user.display_name}</h1>
+                <div class="channel-stats">${formatViewers(user.follower_count)} followers</div>
+                ${user.description ? `<div style="color:${isLight ? '#666' : '#adadb8'}; margin-top:10px; font-size:16px; max-width:800px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${user.description}</div>` : ''}
+            </div>
+            <div id="channel-follow-btn" class="follow-btn-large ${channelIsFollowing ? 'unfollow' : ''}">
+                ${channelIsFollowing ? 'Unfollow' : 'Follow'}
+            </div>
+        </div>
+    `;
+
+    // Row 0: Videos
+    if (channelViewData.vods.length > 0) {
+        html += `<h3 style="color:${titleColor}; margin-left:80px; margin-bottom:20px; margin-top:30px; font-size:26px;">Videos</h3>`;
+        html += `<div style="width:100%; overflow:visible; perspective:1200px; margin-bottom:40px;">
+                    <div id="channel-row-0" class="channel-grid">`;
+        channelViewData.vods.forEach((item, idx) => {
+            let thumb = item.thumbnail_url ? item.thumbnail_url.replace('%{width}', '600').replace('%{height}', '338').replace('{width}', '600').replace('{height}', '338') : '';
+            html += `
+                <div class="channel-card" id="channel-card-0-${idx}">
+                    ${item.isLiveItem ? '<div class="badge-live">LIVE</div>' : '<div class="badge-viewers no-dot">' + item.duration + '</div>'}
+                    ${item.isLiveItem ? '<div class="badge-viewers">' + formatViewers(item.viewer_count) + '</div>' : ''}
+                    <img src="${thumb}" style="width:100%; height:100%; object-fit:cover;">
+                    <div class="card-info">
+                        <div style="font-size:22px; font-weight:bold; color:white;">${item.title}</div>
+                        <div style="font-size:16px; color:#adadb8; margin-top:6px;">${item.isLiveItem ? item.game_name : new Date(item.created_at).toLocaleDateString()}</div>
+                    </div>
+                </div>`;
+        });
+        html += `   </div>
+                 </div>`;
+    }
+
+    // Row 1: Filters & Row 2: Clips
+    if (channelViewData.clips.length > 0 || channelClipFilter === '30d') {
+        html += `<div style="display:flex; align-items:center; gap:30px; margin-left:80px; margin-top:20px; margin-bottom:20px;">
+                    <h3 style="color:${titleColor}; font-size:26px; margin:0;">Top Clips</h3>
+                    <div style="display:flex; gap:10px;">
+                        <div class="filter-btn ${channelClipFilter === '7d' ? 'active' : ''}" id="channel-filter-0">7 Giorni</div>
+                        <div class="filter-btn ${channelClipFilter === '30d' ? 'active' : ''}" id="channel-filter-1">30 Giorni</div>
+                    </div>
+                 </div>`;
+                 
+        if (channelViewData.clips.length > 0) {
+            html += `<div style="width:100%; overflow:visible; perspective:1200px; margin-bottom:40px;">
+                        <div id="channel-row-2" class="channel-grid">`;
+            channelViewData.clips.forEach((item, idx) => {
+                let thumb = item.thumbnail_url;
+                html += `
+                    <div class="channel-card" id="channel-card-2-${idx}">
+                        <div class="badge-viewers no-dot">${formatViewers(item.view_count)} views</div>
+                        <img src="${thumb}" style="width:100%; height:100%; object-fit:cover;">
+                        <div class="card-info">
+                            <div style="font-size:22px; font-weight:bold; color:white;">${item.title}</div>
+                            <div style="font-size:16px; color:#adadb8; margin-top:6px;">By ${item.broadcaster_name}</div>
+                        </div>
+                    </div>`;
+            });
+            html += `   </div>
+                     </div>`;
+        } else {
+            html += `<div style="color:#adadb8; margin-left:80px; font-size:20px; margin-bottom:40px;">Nessuna clip in questo periodo.</div>`;
+        }
+    }
+
+    html += `</div>`;
+    viewArea.innerHTML = html;
+    updateChannelSelection();
+    
+    viewArea.scrollTop = 0;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function updateChannelSelection() {
+    // Reset all
+    document.querySelectorAll('#channel-view .selected, #channel-view .focused').forEach(el => {
+        el.classList.remove('selected', 'focused');
+    });
+
+    if (channelViewActiveRow === -1) {
+        // Follow button
+        document.getElementById('channel-follow-btn').classList.add('focused');
+        document.getElementById('channel-follow-btn').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else if (channelViewActiveRow === 0) {
+        const rowDiv = document.getElementById('channel-row-0');
+        if (rowDiv) {
+            let cardWidth = 600 + 20;
+            let offset = 80 - (channelViewColIndices[0] * cardWidth);
+            rowDiv.style.transform = `translateX(${offset}px)`;
+            
+            const card = document.getElementById(`channel-card-0-${channelViewColIndices[0]}`);
+            if (card) {
+                card.classList.add('selected');
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+    } else if (channelViewActiveRow === 1) {
+        // Filters
+        const filterBtn = document.getElementById(`channel-filter-${channelClipFilterIdx}`);
+        if (filterBtn) {
+            filterBtn.classList.add('focused');
+            filterBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    } else if (channelViewActiveRow === 2) {
+        const rowDiv = document.getElementById('channel-row-2');
+        if (rowDiv) {
+            let cardWidth = 600 + 20;
+            let offset = 80 - (channelViewColIndices[2] * cardWidth);
+            rowDiv.style.transform = `translateX(${offset}px)`;
+            
+            const card = document.getElementById(`channel-card-2-${channelViewColIndices[2]}`);
+            if (card) {
+                card.classList.add('selected');
+                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+    }
+}
+
 // --- CATEGORY VIEW ---
 async function openCategoryView(category, isRefetch = false) {
     inCategoryView = true;
@@ -964,7 +1183,7 @@ function renderCategoryView() {
             } else if (row.type === 'clip') {
                 let thumb = item.thumbnail_url;
                 card.innerHTML = `
-                    <div class="badge-viewers">${formatViewers(item.view_count)} views</div>
+                    <div class="badge-viewers no-dot">${formatViewers(item.view_count)} views</div>
                     <img src="${thumb}" style="width:100%; height:100%; object-fit:cover;">
                     <div class="card-info">
                         <div style="font-size:22px; font-weight:bold; color:white;">${item.title}</div>
@@ -1136,6 +1355,98 @@ function handleKeydown(e) {
         // Typing keys pass through naturally
         return;
     } else {
+        if (inChannelView) {
+            // BACK BUTTON
+            if (e.keyCode === 8 || e.keyCode === 27 || e.keyCode === 461 || e.keyCode === 10009) {
+                inChannelView = false;
+                const menuItems = document.querySelectorAll('.menu-item');
+                const selectedId = menuItems[currentFocusIndex].id;
+                if (selectedId === 'menu-search') {
+                    inMenu = false;
+                    isSearchInputFocused = false;
+                    renderSearchResults();
+                } else if (selectedId === 'menu-follow') {
+                    renderFollowScreen();
+                } else {
+                    loadContent();
+                }
+                return;
+            }
+
+            if (channelViewActiveRow === -1) {
+                // Header (Follow button)
+                if (e.keyCode === 40) { channelViewActiveRow = channelViewData.vods.length > 0 ? 0 : (channelViewData.clips.length > 0 ? 1 : -1); updateChannelSelection(); }
+                else if (e.keyCode === 13) {
+                    if (userToken) {
+                        const method = channelIsFollowing ? 'DELETE' : 'POST';
+                        const url = channelIsFollowing 
+                            ? `https://api.twitch.tv/helix/channels/followers?broadcaster_id=${channelViewData.user.id}&user_id=${userId}`
+                            : `https://api.twitch.tv/helix/channels/followers`;
+                        const opts = { method: method, headers: { 'Content-Type': 'application/json' } };
+                        if (!channelIsFollowing) {
+                            opts.body = JSON.stringify({ broadcaster_id: channelViewData.user.id, user_id: userId });
+                        }
+                        twitchFetch(url, opts).then(() => {
+                            openChannelView(channelViewData.user.login, true);
+                        });
+                    }
+                }
+            } else if (channelViewActiveRow === 0) {
+                // VODs
+                if (e.keyCode === 38) { channelViewActiveRow = -1; updateChannelSelection(); }
+                else if (e.keyCode === 40) { channelViewActiveRow = 1; updateChannelSelection(); }
+                else if (e.keyCode === 39) {
+                    if (channelViewActiveCol < channelViewData.vods.length - 1) {
+                        channelViewActiveCol++;
+                        channelViewColIndices[0] = channelViewActiveCol;
+                        updateChannelSelection();
+                    }
+                } else if (e.keyCode === 37) {
+                    if (channelViewActiveCol > 0) {
+                        channelViewActiveCol--;
+                        channelViewColIndices[0] = channelViewActiveCol;
+                        updateChannelSelection();
+                    }
+                } else if (e.keyCode === 13) {
+                    const item = channelViewData.vods[channelViewActiveCol];
+                    if (item.isLiveItem) {
+                        openNativePlayer(item.user_name || item.user_login, item.user_id);
+                    } else {
+                        window.open(item.url, '_blank');
+                    }
+                }
+            } else if (channelViewActiveRow === 1) {
+                // Filters
+                if (e.keyCode === 38) { channelViewActiveRow = channelViewData.vods.length > 0 ? 0 : -1; channelViewActiveCol = channelViewColIndices[0] || 0; updateChannelSelection(); }
+                else if (e.keyCode === 40 && channelViewData.clips.length > 0) { channelViewActiveRow = 2; channelViewActiveCol = channelViewColIndices[2] || 0; updateChannelSelection(); }
+                else if (e.keyCode === 39) { if (channelClipFilterIdx < 1) channelClipFilterIdx++; updateChannelSelection(); }
+                else if (e.keyCode === 37) { if (channelClipFilterIdx > 0) channelClipFilterIdx--; updateChannelSelection(); }
+                else if (e.keyCode === 13) {
+                    channelClipFilter = channelClipFilterIdx === 0 ? '7d' : '30d';
+                    openChannelView(channelViewData.user.login, true);
+                }
+            } else if (channelViewActiveRow === 2) {
+                // Clips
+                if (e.keyCode === 38) { channelViewActiveRow = 1; updateChannelSelection(); }
+                else if (e.keyCode === 39) {
+                    if (channelViewActiveCol < channelViewData.clips.length - 1) {
+                        channelViewActiveCol++;
+                        channelViewColIndices[2] = channelViewActiveCol;
+                        updateChannelSelection();
+                    }
+                } else if (e.keyCode === 37) {
+                    if (channelViewActiveCol > 0) {
+                        channelViewActiveCol--;
+                        channelViewColIndices[2] = channelViewActiveCol;
+                        updateChannelSelection();
+                    }
+                } else if (e.keyCode === 13) {
+                    const item = channelViewData.clips[channelViewActiveCol];
+                    window.open(item.url, '_blank');
+                }
+            }
+            return;
+        }
         if (inCategoryView) {
             // BACK BUTTON (Backspace=8, Escape=27, LG/Samsung Return=461/10009)
             if (e.keyCode === 8 || e.keyCode === 27 || e.keyCode === 461 || e.keyCode === 10009) {
@@ -1231,7 +1542,7 @@ function handleKeydown(e) {
                     openCategoryView(item);
                 } else {
                     const login = item.broadcaster_login || item.user_login || item.display_name;
-                    openNativePlayer(login, item.id || item.user_id || item.broadcaster_id);
+                    openChannelView(login);
                 }
             }
         } else if (selectedId === 'menu-home') {
@@ -1317,10 +1628,10 @@ function handleKeydown(e) {
             } else if (e.keyCode === 13) {
                 if (currentRowData.type === 'stream') {
                     const selectedStream = currentRowData.data[followActiveCol];
-                    openNativePlayer(selectedStream.user_name || selectedStream.user_login, selectedStream.user_id);
+                    openChannelView(selectedStream.user_name || selectedStream.user_login);
                 } else if (currentRowData.type === 'avatars') {
                     const selectedAvatar = currentRowData.data[followActiveCol];
-                    openNativePlayer(selectedAvatar.login, selectedAvatar.id);
+                    openChannelView(selectedAvatar.login);
                 }
             }
         } else if (selectedId === 'menu-settings') {

@@ -513,6 +513,10 @@ body.theme-light .settings-btn.active-setting {
     border-radius: 50%;
 }
 
+.badge-viewers.no-dot::before {
+    display: none;
+}
+
 .logout-btn {
     display: inline-block;
     margin-top: 50px;
@@ -680,3 +684,87 @@ body.player-active #topbar {
 }
 .quality-item { padding: 15px 40px; color: white; font-size: 20px; font-weight: bold; text-align: center; }
 .quality-item.focused { background: #9146ff; color: white; }
+
+/* --- CHANNEL PROFILE VIEW --- */
+.channel-header {
+    display: flex;
+    align-items: center;
+    padding: 40px 80px;
+    gap: 30px;
+    background: linear-gradient(to right, rgba(20,20,25,0.9), transparent);
+}
+body.theme-light .channel-header {
+    background: linear-gradient(to right, rgba(230,230,235,0.9), transparent);
+}
+.channel-avatar-container {
+    position: relative;
+}
+.channel-avatar-large {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 4px solid transparent;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+.channel-avatar-large.is-live {
+    border-color: #eb0400;
+}
+.live-badge-avatar {
+    position: absolute;
+    bottom: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #eb0400;
+    color: white;
+    font-size: 12px;
+    font-weight: bold;
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+.channel-info-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+.channel-name-large {
+    font-size: 48px;
+    font-weight: bold;
+    margin: 0;
+    color: white;
+}
+body.theme-light .channel-name-large { color: #000; }
+.channel-stats {
+    font-size: 18px;
+    color: #adadb8;
+    margin-top: 5px;
+}
+body.theme-light .channel-stats { color: #555; }
+
+.follow-btn-large {
+    padding: 15px 40px;
+    background-color: #9146ff;
+    color: white;
+    font-size: 20px;
+    font-weight: bold;
+    border-radius: 10px;
+    border: 4px solid transparent;
+    transition: all 0.3s;
+    text-transform: uppercase;
+    margin-right: 80px;
+}
+.follow-btn-large.unfollow {
+    background-color: rgba(255,255,255,0.1);
+}
+body.theme-light .follow-btn-large.unfollow {
+    background-color: rgba(0,0,0,0.1);
+    color: #000;
+}
+.follow-btn-large.focused {
+    border-color: white;
+    transform: scale(1.1);
+    box-shadow: 0 0 20px rgba(145,70,255,0.6);
+}
+body.theme-light .follow-btn-large.focused {
+    border-color: #9146ff;
+}
