@@ -27,6 +27,7 @@ let inCategoryView = false;
 let categoryDataRows = [];
 let categoryActiveRow = 0;
 let categoryActiveCol = 0;
+let categoryColIndices = [];
 let currentCategoryData = null;
 let categoryFilters = { it: true, en: true };
 let categoryFilterIdx = 0;
@@ -572,8 +573,8 @@ async function startDeviceFlow() {
         viewArea.innerHTML = `
             <div class="activation-container">
                 <div class="activation-box">
-                    <h1 style="color:#bf94ff; font-size:50px; margin-bottom: 20px;">twitch.tv/activate</h1>
-                    <div style="color:${textColor}; font-size:80px; font-weight:bold; margin:20px 0; letter-spacing:15px;">${data.user_code}</div>
+                    <h1 style="color:#bf94ff; font-size:38px; margin-bottom: 15px;">twitch.tv/activate</h1>
+                    <div style="color:${textColor}; font-size:60px; font-weight:bold; margin:15px 0; letter-spacing:10px;">${data.user_code}</div>
                 </div>
             </div>`;
         pollForToken(data.device_code, data.interval);
@@ -833,6 +834,7 @@ async function openCategoryView(category, isRefetch = false) {
         if (!isRefetch) {
             categoryActiveRow = 0;
             categoryActiveCol = 0;
+            categoryColIndices = new Array(categoryDataRows.length).fill(0);
             categoryFilterIdx = 0;
         }
         
@@ -948,8 +950,8 @@ function updateCategorySelection() {
         const rowDiv = document.getElementById(`cat-row-${rowIndex}`);
         if (!rowDiv) return;
         
-        let targetColIdx = (rowIndex === categoryActiveRow) ? categoryActiveCol : 0;
-        let cardWidth = 440 + 20;
+        let targetColIdx = categoryColIndices[rowIndex] || 0;
+        let cardWidth = 600 + 20; // Match .channel-card width (600) + gap (20)
         let offset = 80 - (targetColIdx * cardWidth);
         
         rowDiv.style.transform = `translateX(${offset}px)`;
@@ -1035,7 +1037,7 @@ function handleKeydown(e) {
             if (categoryActiveRow === -1) {
                 if (e.keyCode === 39) { if (categoryFilterIdx < 3) categoryFilterIdx++; renderCategoryView(); }
                 else if (e.keyCode === 37) { if (categoryFilterIdx > 0) categoryFilterIdx--; renderCategoryView(); }
-                else if (e.keyCode === 40) { categoryActiveRow = 0; categoryActiveCol = 0; renderCategoryView(); }
+                else if (e.keyCode === 40) { categoryActiveRow = 0; categoryActiveCol = categoryColIndices[0] || 0; renderCategoryView(); }
                 else if (e.keyCode === 13) {
                     if (categoryFilterIdx === 0) categoryFilters.it = !categoryFilters.it;
                     if (categoryFilterIdx === 1) categoryFilters.en = !categoryFilters.en;
@@ -1047,21 +1049,33 @@ function handleKeydown(e) {
             }
 
             if (e.keyCode === 39) {
-                if (categoryActiveCol < categoryDataRows[categoryActiveRow].data.length - 1) categoryActiveCol++;
-                updateCategorySelection();
+                if (categoryActiveCol < categoryDataRows[categoryActiveRow].data.length - 1) {
+                    categoryActiveCol++;
+                    categoryColIndices[categoryActiveRow] = categoryActiveCol;
+                    updateCategorySelection();
+                }
             } else if (e.keyCode === 37) {
-                if (categoryActiveCol > 0) categoryActiveCol--;
-                updateCategorySelection();
+                if (categoryActiveCol > 0) {
+                    categoryActiveCol--;
+                    categoryColIndices[categoryActiveRow] = categoryActiveCol;
+                    updateCategorySelection();
+                }
             } else if (e.keyCode === 40) {
                 if (categoryActiveRow < categoryDataRows.length - 1) {
                     categoryActiveRow++;
-                    categoryActiveCol = 0;
+                    categoryActiveCol = categoryColIndices[categoryActiveRow] || 0;
+                    if (categoryActiveCol >= categoryDataRows[categoryActiveRow].data.length) {
+                        categoryActiveCol = categoryDataRows[categoryActiveRow].data.length - 1;
+                    }
                     updateCategorySelection();
                 }
             } else if (e.keyCode === 38) {
                 if (categoryActiveRow > 0) {
                     categoryActiveRow--;
-                    categoryActiveCol = 0;
+                    categoryActiveCol = categoryColIndices[categoryActiveRow] || 0;
+                    if (categoryActiveCol >= categoryDataRows[categoryActiveRow].data.length) {
+                        categoryActiveCol = categoryDataRows[categoryActiveRow].data.length - 1;
+                    }
                     updateCategorySelection();
                 } else {
                     categoryActiveRow = -1;

@@ -36,6 +36,9 @@ files:
 excludes:
   - Build/*
   - Debug/*
+  - .git
+  - .git/*
+  - \.git/.*
   - Directory.Build.targets
   - \.Build/.*
   - \.buildResult/.*

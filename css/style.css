@@ -545,8 +545,7 @@ body.theme-light .status-msg {
 }
 
 /* --- FULL PAGE SCREENS (settings, profile, follow empty) --- */
-.full-page-screen,
-.activation-container {
+.full-page-screen {
     position: fixed;
     top: 140px;
     left: 0;
@@ -560,22 +559,36 @@ body.theme-light .status-msg {
     transition: top 0.5s cubic-bezier(0.23, 1, 0.32, 1), height 0.5s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-body.menu-hidden .full-page-screen,
-body.menu-hidden .activation-container {
+.activation-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    background-color: rgba(14, 14, 16, 0.8);
+    backdrop-filter: blur(10px);
+}
+
+body.menu-hidden .full-page-screen {
     top: 40px;
     height: calc(100vh - 40px);
 }
 
 .activation-box {
-    border: 4px solid #bf94ff;
-    border-radius: 30px;
-    padding: 60px;
+    border: 3px solid #bf94ff;
+    border-radius: 25px;
+    padding: 35px 50px;
     display: flex;
     flex-direction: column;
     align-items: center;
     background-color: #1f1f23;
-    box-shadow: 0 0 50px rgba(145, 70, 255, 0.4);
-    min-width: 600px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(145, 70, 255, 0.3);
+    min-width: 450px;
 }
 
 body.theme-light .activation-box {
