@@ -155,6 +155,12 @@ function applySettings() {
     } else {
         document.body.classList.remove('theme-light');
     }
+
+    if (appSettings.performanceMode) {
+        document.body.classList.add('perf-mode');
+    } else {
+        document.body.classList.remove('perf-mode');
+    }
 }
 
 function saveSettings() {
@@ -218,18 +224,6 @@ async function loadContent() {
 
     if (selectedId === 'menu-home') {
         inCategoryView = false;
-        if (appSettings.performanceMode) {
-            // In performance mode, skip home, go to follow
-            const menuItems2 = document.querySelectorAll('.menu-item');
-            for (let i = 0; i < menuItems2.length; i++) {
-                if (menuItems2[i].id === 'menu-follow') { currentFocusIndex = i; break; }
-            }
-            updateNav();
-            followActiveRow = 0;
-            followActiveCol = 0;
-            await getFollowData();
-            return;
-        }
         activeRow = 0;
         await getTwitchHome();
     } else if (selectedId === 'menu-follow') {
@@ -261,15 +255,17 @@ async function getTwitchHome() {
         }
 
         // 2. Followed or Login Button
-        if (userId && userToken) {
-            const folRes = await twitchFetch(`https://api.twitch.tv/helix/streams/followed?user_id=${userId}&first=10`);
-            if (folRes.data && folRes.data.length > 0) {
-                homeDataRows.push({ title: "Channels you follow", type: "stream", data: folRes.data });
+        if (!appSettings.performanceMode) {
+            if (userId && userToken) {
+                const folRes = await twitchFetch(`https://api.twitch.tv/helix/streams/followed?user_id=${userId}&first=10`);
+                if (folRes.data && folRes.data.length > 0) {
+                    homeDataRows.push({ title: "Channels you follow", type: "stream", data: folRes.data });
+                } else {
+                    homeDataRows.push({ title: "Channels you follow", type: "stream", data: [] });
+                }
             } else {
-                homeDataRows.push({ title: "Channels you follow", type: "stream", data: [] });
+                homeDataRows.push({ title: "", type: "login_btn", data: [{}] });
             }
-        } else {
-            homeDataRows.push({ title: "", type: "login_btn", data: [{}] });
         }
 
         // 3. Top Categories
@@ -500,11 +496,13 @@ function renderFollowScreen() {
             });
             html += `</div>`;
         } else if (row.type === 'avatars') {
-            html += `<div class="live-avatars-bar" id="follow-row-${rowIndex}">`;
-            row.data.forEach((item, colIndex) => {
-                html += `<img src="${item.profile_image_url}" id="follow-card-${rowIndex}-${colIndex}" class="live-avatar-small" />`;
-            });
-            html += `</div>`;
+            if (!appSettings.performanceMode) {
+                html += `<div class="live-avatars-bar" id="follow-row-${rowIndex}">`;
+                row.data.forEach((item, colIndex) => {
+                    html += `<img src="${item.profile_image_url}" id="follow-card-${rowIndex}-${colIndex}" class="live-avatar-small" />`;
+                });
+                html += `</div>`;
+            }
         }
     });
 
@@ -753,9 +751,21 @@ async function executeSearch(query) {
         }
 
         searchDataRows = [];
-        if (liveStreams.length > 0) searchDataRows.push({ title: 'Canali Live', type: 'live', data: liveStreams });
-        if (popularCategories.length > 0) searchDataRows.push({ title: 'Categorie', type: 'category', data: popularCategories });
-        if (allChannels.length > 0) searchDataRows.push({ title: 'Canali', type: 'channel', data: allChannels });
+        if (liveStreams.length > 0) {
+            let data = liveStreams;
+            if (appSettings.performanceMode) data = data.slice(0, 3);
+            searchDataRows.push({ title: 'Canali Live', type: 'live', data: data });
+        }
+        if (popularCategories.length > 0) {
+            let data = popularCategories;
+            if (appSettings.performanceMode) data = data.slice(0, 3);
+            searchDataRows.push({ title: 'Categorie', type: 'category', data: data });
+        }
+        if (allChannels.length > 0) {
+            let data = allChannels;
+            if (appSettings.performanceMode) data = data.slice(0, 3);
+            searchDataRows.push({ title: 'Canali', type: 'channel', data: data });
+        }
 
         if (searchDataRows.length === 0) {
             resultsArea.innerHTML = `<div style="text-align:center; padding-top:60px; color:#adadb8; font-size:24px;">Nessun risultato per "${query}"</div>`;

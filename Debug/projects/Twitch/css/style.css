@@ -21,6 +21,26 @@ body.theme-light {
     color: #0e0e10;
 }
 
+/* --- PERFORMANCE MODE OVERRIDES --- */
+body.perf-mode *, 
+body.perf-mode *::before, 
+body.perf-mode *::after {
+    transition: none !important;
+    animation: none !important;
+    backdrop-filter: none !important;
+    mask-image: none !important;
+    -webkit-mask-image: none !important;
+}
+
+body.perf-mode .channel-card,
+body.perf-mode .category-card,
+body.perf-mode .hero-card,
+body.perf-mode .menu-item,
+body.perf-mode .settings-btn,
+body.perf-mode .filter-btn {
+    transition: none !important;
+}
+
 #app-container {
     display: flex;
     flex-direction: column;
