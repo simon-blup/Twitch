@@ -36,21 +36,7 @@ let clipPeriod = '7d';
 window.onload = async function () {
     applySettings();
     if (userToken) {
-        try {
-            const valRes = await fetch('https://id.twitch.tv/oauth2/validate', {
-                headers: { 'Authorization': 'OAuth ' + userToken }
-            });
-            if (valRes.status === 401) {
-                await validateOrRefreshToken();
-            } else {
-                const valData = await valRes.json();
-                if (valData.user_id) {
-                    userId = valData.user_id;
-                    localStorage.setItem('twitch_user_id', userId);
-                }
-            }
-        } catch (e) { console.error("Validation failed", e); }
-        
+        await checkLoginStatus();
         if (!userId && userToken) await fetchUserId();
     }
     updateNav();
@@ -75,22 +61,60 @@ window.onload = async function () {
     document.addEventListener('keydown', handleKeydown);
 };
 
-async function validateOrRefreshToken() {
-    if (!refreshToken) return;
+async function checkLoginStatus() {
+    if (!userToken) return;
     try {
-        const refreshRes = await fetch('https://id.twitch.tv/oauth2/token', {
+        const response = await fetch('https://id.twitch.tv/oauth2/validate', {
+            headers: { 'Authorization': 'OAuth ' + userToken }
+        });
+        if (response.status === 401) {
+            console.log("Token scaduto, tentativo di refresh...");
+            await refreshTwitchToken();
+        } else {
+            const data = await response.json();
+            userId = data.user_id;
+            localStorage.setItem('twitch_user_id', userId);
+        }
+    } catch (error) {
+        console.error("Errore durante la validazione:", error);
+    }
+}
+
+async function refreshTwitchToken() {
+    if (!refreshToken) {
+        logout();
+        return;
+    }
+    try {
+        const response = await fetch('https://id.twitch.tv/oauth2/token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: `client_id=${CLIENT_ID}&grant_type=refresh_token&refresh_token=${refreshToken}`
         });
-        const refreshData = await refreshRes.json();
-        if (refreshData.access_token) {
-            userToken = refreshData.access_token;
-            if (refreshData.refresh_token) refreshToken = refreshData.refresh_token;
+        const data = await response.json();
+        if (data.access_token) {
+            userToken = data.access_token;
+            refreshToken = data.refresh_token || refreshToken;
             localStorage.setItem('twitch_access_token', userToken);
             localStorage.setItem('twitch_refresh_token', refreshToken);
+            console.log("Token aggiornato con successo!");
+        } else {
+            logout();
         }
-    } catch(e) { console.error("Refresh failed", e); }
+    } catch (error) {
+        console.error("Errore durante il refresh:", error);
+        logout();
+    }
+}
+
+function logout() {
+    localStorage.removeItem('twitch_access_token');
+    localStorage.removeItem('twitch_refresh_token');
+    localStorage.removeItem('twitch_user_id');
+    userToken = '';
+    refreshToken = '';
+    userId = '';
+    loadContent();
 }
 
 function applySettings() {
@@ -132,7 +156,7 @@ async function twitchFetch(url, options = {}) {
 
     let res = await fetch(url, options);
     if (res.status === 401 && refreshToken) {
-        await validateOrRefreshToken();
+        await refreshTwitchToken();
         options.headers['Authorization'] = 'Bearer ' + userToken;
         res = await fetch(url, options);
     }
@@ -594,7 +618,7 @@ function pollForToken(deviceCode, interval) {
             userToken = res.access_token;
             refreshToken = res.refresh_token || '';
             localStorage.setItem('twitch_access_token', userToken);
-            if (res.refresh_token) localStorage.setItem('twitch_refresh_token', refreshToken);
+            localStorage.setItem('twitch_refresh_token', refreshToken);
             await fetchUserId();
             currentFocusIndex = 1; inMenu = true; updateNav(); loadContent();
         }
@@ -1231,7 +1255,7 @@ function handleKeydown(e) {
             }
         } else if (selectedId === 'menu-profile') {
             if (e.keyCode === 38) { inMenu = true; updateNav(); showProfileScreen(); }
-            if (e.keyCode === 13 && userToken) { localStorage.removeItem('twitch_access_token'); localStorage.removeItem('twitch_refresh_token'); localStorage.removeItem('twitch_user_id'); userToken = ''; refreshToken = ''; userId = ''; inMenu = true; updateNav(); loadContent(); }
+            if (e.keyCode === 13 && userToken) { logout(); inMenu = true; updateNav(); }
         }
     }
 }
