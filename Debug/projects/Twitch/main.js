@@ -30,6 +30,9 @@ let originalHeroCount = 0; // Per gestire il loop infinito della prima riga
 let settingsRow = 0;
 let settingsCol = [0, 0];
 
+// Navigation Race Condition Fix
+let currentNavSequence = 0;
+
 // Per gestire Follow
 let followDataRows = [];
 let followActiveRow = 0;
@@ -205,6 +208,9 @@ async function loadContent() {
     const menuItems = document.querySelectorAll('.menu-item');
     const selectedId = menuItems[currentFocusIndex].id;
     const viewArea = document.getElementById('main-view-area');
+    
+    currentNavSequence++;
+    const mySeq = currentNavSequence;
 
     if (viewArea) viewArea.innerHTML = `<div style="text-align:center; padding-top:100px; color:white;">Loading...</div>`;
 
@@ -225,11 +231,11 @@ async function loadContent() {
     if (selectedId === 'menu-home') {
         inCategoryView = false;
         activeRow = 0;
-        await getTwitchHome();
+        await getTwitchHome(mySeq);
     } else if (selectedId === 'menu-follow') {
         followActiveRow = 0;
         followActiveCol = 0;
-        await getFollowData();
+        await getFollowData(mySeq);
     } else if (selectedId === 'menu-settings') {
         settingsRow = 0;
         settingsCol = [
@@ -237,13 +243,13 @@ async function loadContent() {
             appSettings.theme === 'dark' ? 0 : 1,
             appSettings.performanceMode ? 0 : 1
         ];
-        showSettingsScreen();
+        if (mySeq === currentNavSequence) showSettingsScreen();
     } else if (selectedId === 'menu-profile') {
-        showProfileScreen();
+        if (mySeq === currentNavSequence) showProfileScreen();
     }
 }
 
-async function getTwitchHome() {
+async function getTwitchHome(seqId) {
     homeDataRows = [];
     try {
         // 1. Recommended (Hero)
@@ -286,12 +292,15 @@ async function getTwitchHome() {
             homeDataRows.push({ title: "Categories", type: "category", data: catRes.data });
         }
 
+        if (seqId !== currentNavSequence) return; // Prevent race conditions
+
         colIndices = new Array(homeDataRows.length).fill(0);
         if (homeDataRows[0] && homeDataRows[0].isHero) {
             colIndices[0] = originalHeroCount;
         }
         renderHome();
     } catch (e) {
+        if (seqId !== currentNavSequence) return;
         console.error("Errore API", e);
         const va = document.getElementById('main-view-area');
         if (va) va.innerHTML = `<div style="color:red; text-align:center; padding-top:100px;">Loading error.</div>`;
@@ -385,6 +394,7 @@ function updateHomeSelection() {
         }
 
         const cards = rowDiv.querySelectorAll(row.type === 'category' ? '.category-card' : '.channel-card');
+        
         cards.forEach((c, i) => {
             c.classList.remove('selected', 'hero-adjacent', 'hero-center');
             if (row.isHero) {
@@ -392,7 +402,9 @@ function updateHomeSelection() {
                     c.classList.add('hero-center');
                     if (isActiveRow) c.classList.add('selected');
                 }
-                else if (i === currentColIdx - 1 || i === currentColIdx + 1) c.classList.add('hero-adjacent');
+                else if (i === currentColIdx - 1 || i === currentColIdx + 1) {
+                    c.classList.add('hero-adjacent');
+                }
             } else {
                 c.classList.toggle('selected', isActiveRow && i === currentColIdx);
             }
@@ -1373,7 +1385,12 @@ function handleKeydown(e) {
                 if (selectedId === 'menu-search') {
                     inMenu = false;
                     isSearchInputFocused = false;
+                    const viewArea = document.getElementById('main-view-area');
+                    if (viewArea) {
+                        viewArea.innerHTML = `<div id="search-view" style="padding-bottom: 60px;"><div id="search-results-area"></div></div>`;
+                    }
                     renderSearchResults();
+                    updateSearchSelection();
                 } else if (selectedId === 'menu-follow') {
                     renderFollowScreen();
                 } else {
@@ -1462,7 +1479,22 @@ function handleKeydown(e) {
             // BACK BUTTON (Backspace=8, Escape=27, LG/Samsung Return=461/10009)
             if (e.keyCode === 8 || e.keyCode === 27 || e.keyCode === 461 || e.keyCode === 10009) {
                 inCategoryView = false;
-                renderHome();
+                const menuItems = document.querySelectorAll('.menu-item');
+                const selectedId = menuItems[currentFocusIndex].id;
+                if (selectedId === 'menu-search') {
+                    inMenu = false;
+                    isSearchInputFocused = false;
+                    const viewArea = document.getElementById('main-view-area');
+                    if (viewArea) {
+                        viewArea.innerHTML = `<div id="search-view" style="padding-bottom: 60px;"><div id="search-results-area"></div></div>`;
+                    }
+                    renderSearchResults();
+                    updateSearchSelection();
+                } else if (selectedId === 'menu-home') {
+                    renderHome();
+                } else {
+                    loadContent();
+                }
                 return;
             }
 
@@ -1572,11 +1604,14 @@ function handleKeydown(e) {
                             if (colIndices[activeRow] >= originalHeroCount * 2) {
                                 const rowDiv = document.getElementById(`row-${activeRow}`);
                                 if (rowDiv) {
+                                    const cards = rowDiv.querySelectorAll('.channel-card');
                                     rowDiv.style.transition = 'none';
+                                    cards.forEach(c => c.style.transition = 'none');
                                     colIndices[activeRow] -= originalHeroCount;
                                     updateHomeSelection();
                                     rowDiv.offsetHeight; // force reflow
                                     rowDiv.style.transition = '';
+                                    cards.forEach(c => c.style.transition = '');
                                 }
                             }
                         }, 750);
@@ -1596,11 +1631,14 @@ function handleKeydown(e) {
                             if (colIndices[activeRow] < originalHeroCount) {
                                 const rowDiv = document.getElementById(`row-${activeRow}`);
                                 if (rowDiv) {
+                                    const cards = rowDiv.querySelectorAll('.channel-card');
                                     rowDiv.style.transition = 'none';
+                                    cards.forEach(c => c.style.transition = 'none');
                                     colIndices[activeRow] += originalHeroCount;
                                     updateHomeSelection();
                                     rowDiv.offsetHeight; // force reflow
                                     rowDiv.style.transition = '';
+                                    cards.forEach(c => c.style.transition = '');
                                 }
                             }
                         }, 750);
