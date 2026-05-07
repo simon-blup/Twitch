@@ -334,10 +334,11 @@ body.theme-light .category-card {
     position: sticky;
     bottom: 0;
     width: 100%;
-    padding: 20px 0;
     display: flex;
     justify-content: center;
-    gap: 15px;
+    flex-wrap: wrap;
+    gap: 20px;
+    padding: 20px 80px;
     z-index: 100;
     background: linear-gradient(to top, rgba(14,14,20,1) 50%, rgba(14,14,20,0) 100%);
 }
@@ -347,10 +348,10 @@ body.theme-light .live-avatars-bar {
 }
 
 .live-avatar-small {
-    width: 40px;
-    height: 40px;
+    width: 60px;
+    height: 60px;
     border-radius: 50%;
-    border: 2px solid #eb0400; /* Twitch red */
+    border: 3px solid #eb0400; /* Twitch red */
     object-fit: cover;
     box-shadow: 0 4px 10px rgba(0,0,0,0.5);
     transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1), border-color 0.3s ease;

@@ -534,7 +534,8 @@ function updateFollowSelection() {
             const rowEl = document.getElementById(`follow-row-${followActiveRow}`);
             if (rowEl) rowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
         } else {
-            if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+            // Per gli avatar, evitiamo 'center' che causa scatti orizzontali della pagina
+            if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
         }
     } else {
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -601,7 +602,7 @@ async function showProfileScreen() {
                 <div class="full-page-screen">
                     <h1 style="color:${textColor}; font-size:48px; margin-bottom: 20px;">Hello, ${userName}!</h1>
                     <div style="color:#adadb8; font-size:16px; margin-bottom:40px;">${tokenStatus} | ${idStatus}</div>
-                    <div class="logout-btn ${!inMenu ? 'focused' : ''}" style="margin-top: 0;">PRESS ENTER TO LOG OUT</div>
+                    <div class="logout-btn ${!inMenu ? 'focused' : ''}" style="margin-top: 0;">LOG OUT</div>
                 </div>`;
         } catch (e) { console.error(e); }
     } else { startDeviceFlow(); }
