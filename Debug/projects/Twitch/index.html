@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <title>Twitch TV App</title>
     <link rel="stylesheet" type="text/css" href="css/style.css"/>
+    <script type="text/javascript" src="$WEBAPIS/webapis/webapis.js"></script>
 </head>
 <body>
     <div id="app-container">
@@ -34,6 +35,42 @@
             <div id="main-view-area"></div>
         </main>
     </div>
+
+    <!-- NATIVE TWITCH PLAYER OVERLAY -->
+    <div id="player-container" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: transparent; z-index: 1000;">
+        
+        <!-- Player UI -->
+        <div id="player-ui" class="player-ui-overlay hidden">
+            <!-- Bottone Centrale Play/Pause -->
+            <button id="btn-play" class="player-btn round-btn center-btn">
+                <svg id="icon-pause" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                <svg id="icon-play" viewBox="0 0 24 24" fill="currentColor" style="display:none;"><path d="M8 5v14l11-7z"/></svg>
+            </button>
+
+            <!-- Controlli a Destra -->
+            <div class="player-controls-right">
+                <!-- Follow -->
+                <button id="btn-follow" class="player-btn round-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                </button>
+                <!-- Qualità -->
+                <button id="btn-quality" class="player-btn round-btn">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.06-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.73,8.87C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.06,0.94l-2.03,1.58c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.43-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.49-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg>
+                </button>
+                <!-- Chat -->
+                <button id="btn-chat" class="player-btn round-btn">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z"/></svg>
+                </button>
+            </div>
+            
+            <!-- Menu Qualità M3U8 -->
+            <div id="quality-menu" class="quality-menu" style="display:none;"></div>
+        </div>
+        
+        <!-- Chat Iframe (Nascosta di Default) -->
+        <iframe id="twitch-chat" style="display:none; position:absolute; right:0; top:0; width:350px; height:100%; border:none; background:rgba(14,14,16,0.9); z-index:999;"></iframe>
+    </div>
+
     <script src="main.js"></script>
 </body>
 </html>

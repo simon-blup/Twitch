@@ -3,6 +3,19 @@ let userToken = localStorage.getItem('twitch_access_token') || '';
 let refreshToken = localStorage.getItem('twitch_refresh_token') || '';
 let userId = localStorage.getItem('twitch_user_id') || '';
 
+// --- VARIABILI PLAYER NATIVO ---
+let inPlayer = false;
+let uiTimeout = null;
+let playerFocusIndex = 0; // 0: Play, 1: Follow, 2: Quality, 3: Chat
+const playerBtns = ['btn-play', 'btn-follow', 'btn-quality', 'btn-chat'];
+let isPlaying = true;
+let isChatOpen = false;
+let isQualityMenuOpen = false;
+let qualityOptions = [];
+let qualityFocusIndex = 0;
+let currentStreamChannel = "";
+let currentStreamId = "";
+
 // Default barPos is 'center'
 let appSettings = JSON.parse(localStorage.getItem('twitch_settings')) || { barPos: 'center', theme: 'dark', performanceMode: false };
 
@@ -999,6 +1012,79 @@ function updateCategorySelection() {
 }
 
 function handleKeydown(e) {
+    // --- GESTIONE TELECOMANDO PER IL PLAYER ---
+    if (inPlayer) {
+        const ui = document.getElementById('player-ui');
+        const isUIHidden = ui.classList.contains('hidden');
+
+        // Tasto Back / Return (Chiudi menu o chiudi player)
+        if (e.keyCode === 8 || e.keyCode === 27 || e.keyCode === 461 || e.keyCode === 10009) {
+            if (isQualityMenuOpen) {
+                isQualityMenuOpen = false; document.getElementById('quality-menu').style.display = 'none';
+                showPlayerUI(); updatePlayerFocus();
+            } else {
+                closeNativePlayer();
+            }
+            return;
+        }
+        
+        // Se la UI è nascosta, qualsiasi freccia o OK la fa riapparire
+        if (isUIHidden) {
+            if (e.keyCode === 13 || (e.keyCode >= 37 && e.keyCode <= 40)) { showPlayerUI(); updatePlayerFocus(); }
+            return;
+        }
+        
+        showPlayerUI(); // Resetta il timer di auto-hide
+
+        // Navigazione Menu Qualità
+        if (isQualityMenuOpen) {
+            if (e.keyCode === 38 && qualityFocusIndex > 0) qualityFocusIndex--;
+            if (e.keyCode === 40 && qualityFocusIndex < qualityOptions.length - 1) qualityFocusIndex++;
+            if (e.keyCode === 13) {
+                playVideoUrl(qualityOptions[qualityFocusIndex].url);
+                isQualityMenuOpen = false; document.getElementById('quality-menu').style.display = 'none';
+            }
+            updatePlayerFocus(); return;
+        }
+        
+        // Navigazione Bottoni Player
+        if (e.keyCode === 39 && playerFocusIndex < playerBtns.length - 1) playerFocusIndex++;
+        if (e.keyCode === 37 && playerFocusIndex > 0) playerFocusIndex--;
+        if (e.keyCode === 13) { // Tasto OK
+            if (playerFocusIndex === 0) { // Play/Pause
+                try {
+                    if (isPlaying) { 
+                        webapis.avplay.pause(); 
+                        isPlaying = false; 
+                        document.getElementById('icon-pause').style.display='none'; 
+                        document.getElementById('icon-play').style.display='block'; 
+                    } else { 
+                        webapis.avplay.play(); 
+                        isPlaying = true; 
+                        document.getElementById('icon-pause').style.display='block'; 
+                        document.getElementById('icon-play').style.display='none'; 
+                    }
+                } catch(e) { console.error('AVPlay play/pause error', e); }
+            } else if (playerFocusIndex === 1) { // Follow (API nuova V2)
+                if (userToken && currentStreamId) {
+                    twitchFetch(`https://api.twitch.tv/helix/channels/followers`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ broadcaster_id: currentStreamId, user_id: userId })
+                    });
+                }
+            } else if (playerFocusIndex === 2) { // Menu Qualità
+                const menu = document.getElementById('quality-menu');
+                menu.innerHTML = qualityOptions.map((q, i) => `<div class="quality-item ${i===0?'focused':''}">${q.name}</div>`).join('');
+                menu.style.display = 'flex'; isQualityMenuOpen = true; qualityFocusIndex = 0;
+            } else if (playerFocusIndex === 3) { // Toggle Chat
+                isChatOpen = !isChatOpen;
+                document.getElementById('twitch-chat').style.display = isChatOpen ? 'block' : 'none';
+            }
+        }
+        updatePlayerFocus();
+        return;
+    }
+
     const searchInput = document.getElementById('search-input');
     if (searchInput && document.activeElement === searchInput) {
         if (!isSearchInputFocused) {
@@ -1108,7 +1194,7 @@ function handleKeydown(e) {
             } else if (e.keyCode === 13) {
                 const item = categoryDataRows[categoryActiveRow].data[categoryActiveCol];
                 if (categoryDataRows[categoryActiveRow].type === 'stream') {
-                    window.open(`https://www.twitch.tv/${item.user_name}`, '_blank');
+                    openNativePlayer(item.user_name || item.user_login, item.user_id);
                 } else if (categoryDataRows[categoryActiveRow].type === 'clip') {
                     window.open(item.url, '_blank');
                 }
@@ -1145,7 +1231,7 @@ function handleKeydown(e) {
                     openCategoryView(item);
                 } else {
                     const login = item.broadcaster_login || item.user_login || item.display_name;
-                    window.open(`https://www.twitch.tv/${login}`, '_blank');
+                    openNativePlayer(login, item.id || item.user_id || item.broadcaster_id);
                 }
             }
         } else if (selectedId === 'menu-home') {
@@ -1193,7 +1279,7 @@ function handleKeydown(e) {
                     openCategoryView(selectedCategory);
                 } else if (currentRowData.type === 'stream') {
                     const selectedStream = currentRowData.data[colIndices[activeRow]];
-                    window.open(`https://www.twitch.tv/${selectedStream.user_name}`, '_blank');
+                    openNativePlayer(selectedStream.user_name || selectedStream.user_login, selectedStream.user_id);
                 }
             }
         } else if (selectedId === 'menu-follow') {
@@ -1231,10 +1317,10 @@ function handleKeydown(e) {
             } else if (e.keyCode === 13) {
                 if (currentRowData.type === 'stream') {
                     const selectedStream = currentRowData.data[followActiveCol];
-                    window.open(`https://www.twitch.tv/${selectedStream.user_name}`, '_blank');
+                    openNativePlayer(selectedStream.user_name || selectedStream.user_login, selectedStream.user_id);
                 } else if (currentRowData.type === 'avatars') {
                     const selectedAvatar = currentRowData.data[followActiveCol];
-                    window.open(`https://www.twitch.tv/${selectedAvatar.login}`, '_blank');
+                    openNativePlayer(selectedAvatar.login, selectedAvatar.id);
                 }
             }
         } else if (selectedId === 'menu-settings') {
@@ -1258,4 +1344,123 @@ function handleKeydown(e) {
             if (e.keyCode === 13 && userToken) { logout(); inMenu = true; updateNav(); }
         }
     }
+}
+
+// --- MOTORE NATIVE PLAYER (GraphQL + HLS) ---
+async function getStreamM3u8(channel) {
+    // 1. Usa il client-id pubblico Web di Twitch per bypassare blocchi OAuth sullo streaming
+    const gqlBody = {
+        operationName: 'PlaybackAccessToken_Template',
+        query: `query PlaybackAccessToken_Template($login: String!, $isLive: Boolean!, $vodID: ID!, $isVod: Boolean!, $playerType: String!) {  streamPlaybackAccessToken(channelName: $login, params: {platform: "web", playerBackend: "mediaplayer", playerType: $playerType}) { value signature } }`,
+        variables: { isLive: true, login: channel, isVod: false, vodID: '', playerType: 'site' }
+    };
+
+    const tokenRes = await fetch('https://gql.twitch.tv/gql', {
+        method: 'POST',
+        headers: { 'Client-ID': 'kimne78kx3ncx6brgo4mv6wki5h1ko', 'Content-Type': 'application/json' },
+        body: JSON.stringify(gqlBody)
+    });
+    const tokenData = await tokenRes.json();
+    if (!tokenData.data || !tokenData.data.streamPlaybackAccessToken) return null;
+    
+    const { value, signature } = tokenData.data.streamPlaybackAccessToken;
+    
+    // 2. Componi e Leggi il file M3U8 Master da Usher
+    const m3u8Url = `https://usher.ttvnw.net/api/channel/hls/${channel}.m3u8?allow_source=true&fast_bread=true&sig=${signature}&token=${encodeURIComponent(value)}`;
+    const m3u8Res = await fetch(m3u8Url);
+    const m3u8Text = await m3u8Res.text();
+    
+    // 3. Estrai le varianti (Risoluzioni)
+    const lines = m3u8Text.split('\n');
+    const streams = [{ name: 'Auto', url: m3u8Url }]; // La prima è sempre l'Auto nativa
+    let currentName = null;
+    
+    lines.forEach(line => {
+        if (line.startsWith('#EXT-X-STREAM-INF')) {
+            const nameMatch = line.match(/VIDEO="([^"]+)"/);
+            currentName = nameMatch ? nameMatch[1] : 'Unknown';
+        } else if (line.startsWith('http') && currentName) {
+            streams.push({ name: currentName, url: line });
+            currentName = null;
+        }
+    });
+    return streams;
+}
+
+async function openNativePlayer(channelName, channelId) {
+    inPlayer = true;
+    currentStreamChannel = channelName;
+    currentStreamId = channelId;
+    document.getElementById('player-container').style.display = 'block';
+    document.body.classList.add('player-active');
+    
+    qualityOptions = await getStreamM3u8(channelName);
+    if (!qualityOptions || qualityOptions.length === 0) {
+        closeNativePlayer(); return;
+    }
+    
+    playVideoUrl(qualityOptions[0].url); // Fai partire "Auto"
+    document.getElementById('twitch-chat').src = `https://www.twitch.tv/embed/${channelName}/chat?parent=localhost&darkpopout`;
+    
+    showPlayerUI();
+    updatePlayerFocus();
+}
+
+function playVideoUrl(url) {
+    try {
+        webapis.avplay.stop();
+        webapis.avplay.close();
+    } catch(e) {}
+
+    try {
+        webapis.avplay.open(url);
+        webapis.avplay.setDisplayRect(0, 0, 1920, 1080); // Risoluzione standard TV
+        
+        webapis.avplay.prepareAsync(function() {
+            webapis.avplay.play();
+            isPlaying = true;
+            document.getElementById('icon-pause').style.display = 'block';
+            document.getElementById('icon-play').style.display = 'none';
+        }, function(error) {
+            console.error("AVPlay prepare error: " + error);
+        });
+    } catch(e) {
+        console.error("AVPlay open error: ", e);
+    }
+}
+
+function closeNativePlayer() {
+    inPlayer = false;
+    
+    // Chiusura aggressiva vitale per Smart TV AVPlay
+    try {
+        webapis.avplay.stop();
+        webapis.avplay.close();
+    } catch(e) { console.error('AVPlay close error', e); }
+    
+    document.body.classList.remove('player-active');
+    document.getElementById('player-container').style.display = 'none';
+    document.getElementById('twitch-chat').src = '';
+    isChatOpen = false; document.getElementById('twitch-chat').style.display = 'none';
+    isQualityMenuOpen = false; document.getElementById('quality-menu').style.display = 'none';
+    clearTimeout(uiTimeout);
+}
+
+function showPlayerUI() {
+    const ui = document.getElementById('player-ui');
+    ui.classList.remove('hidden');
+    clearTimeout(uiTimeout);
+    uiTimeout = setTimeout(() => {
+        if (!isQualityMenuOpen) ui.classList.add('hidden');
+    }, 4000);
+}
+
+function updatePlayerFocus() {
+    if (isQualityMenuOpen) {
+        document.querySelectorAll('.quality-item').forEach((el, i) => {
+            el.classList.toggle('focused', i === qualityFocusIndex);
+        });
+        return;
+    }
+    playerBtns.forEach((id, i) => document.getElementById(id).classList.toggle('focused', i === playerFocusIndex));
 }
