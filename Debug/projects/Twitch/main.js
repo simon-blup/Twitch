@@ -59,6 +59,10 @@ let channelClipFilter = '7d'; // '7d' o '30d'
 let channelClipFilterIdx = 0;
 let channelIsFollowing = false;
 
+// Per gestire Exit Menu
+let inExitMenu = false;
+let exitMenuFocusIdx = 0; // 0: Annulla, 1: Esci
+
 window.onload = async function () {
     applySettings();
     if (userToken) {
@@ -1252,6 +1256,30 @@ function updateCategorySelection() {
 }
 
 function handleKeydown(e) {
+    if (inExitMenu) {
+        if (e.keyCode === 39 && exitMenuFocusIdx < 1) {
+            exitMenuFocusIdx++;
+            updateExitMenuFocus();
+        } else if (e.keyCode === 37 && exitMenuFocusIdx > 0) {
+            exitMenuFocusIdx--;
+            updateExitMenuFocus();
+        } else if (e.keyCode === 13) {
+            if (exitMenuFocusIdx === 1) {
+                try {
+                    tizen.application.getCurrentApplication().exit();
+                } catch (err) {
+                    console.error('Cannot exit app', err);
+                    window.close();
+                }
+            } else {
+                hideExitMenu();
+            }
+        } else if (e.keyCode === 8 || e.keyCode === 27 || e.keyCode === 461 || e.keyCode === 10009) {
+            hideExitMenu();
+        }
+        return;
+    }
+
     // --- GESTIONE TELECOMANDO PER IL PLAYER ---
     if (inPlayer) {
         const ui = document.getElementById('player-ui');
@@ -1661,6 +1689,10 @@ function handleKeydown(e) {
                     openNativePlayer(selectedStream.user_name || selectedStream.user_login, selectedStream.user_id);
                 }
             }
+            if (e.keyCode === 8 || e.keyCode === 27 || e.keyCode === 461 || e.keyCode === 10009) {
+                showExitMenu();
+                return;
+            }
         } else if (selectedId === 'menu-follow') {
             if (followDataRows.length === 0) return;
             const currentRowData = followDataRows[followActiveRow];
@@ -1842,4 +1874,32 @@ function updatePlayerFocus() {
         return;
     }
     playerBtns.forEach((id, i) => document.getElementById(id).classList.toggle('focused', i === playerFocusIndex));
+}
+
+function showExitMenu() {
+    inExitMenu = true;
+    exitMenuFocusIdx = 0; // Default to 'Annulla'
+    const menuContainer = document.getElementById('exit-menu-container');
+    if (menuContainer) {
+        menuContainer.classList.remove('hidden');
+    }
+    updateExitMenuFocus();
+}
+
+function hideExitMenu() {
+    inExitMenu = false;
+    const menuContainer = document.getElementById('exit-menu-container');
+    if (menuContainer) {
+        menuContainer.classList.add('hidden');
+    }
+    // Re-focus current home selection when returning
+    updateHomeSelection();
+}
+
+function updateExitMenuFocus() {
+    const btnCancel = document.getElementById('btn-exit-cancel');
+    const btnConfirm = document.getElementById('btn-exit-confirm');
+    
+    if (btnCancel) btnCancel.classList.toggle('focused', exitMenuFocusIdx === 0);
+    if (btnConfirm) btnConfirm.classList.toggle('focused', exitMenuFocusIdx === 1);
 }
