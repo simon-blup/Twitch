@@ -51,7 +51,7 @@ let inChannelView = false;
 let channelViewData = null;
 let channelViewActiveRow = 0; // -1: Header Follow btn, 0: VODs, 1: Clip Filters, 2: Clips
 let channelViewActiveCol = 0;
-let channelViewColIndices = {0: 0, 2: 0};
+let channelViewColIndices = { 0: 0, 2: 0 };
 let channelClipFilter = '7d'; // '7d' o '30d'
 let channelClipFilterIdx = 0;
 let channelIsFollowing = false;
@@ -64,11 +64,11 @@ window.onload = async function () {
     }
     updateNav();
     loadContent();
-    
+
     const searchInput = document.getElementById('search-input');
     if (searchInput) {
         let searchTimeout = null;
-        searchInput.addEventListener('input', function() {
+        searchInput.addEventListener('input', function () {
             clearTimeout(searchTimeout);
             const q = this.value.trim();
             if (q.length < 2) {
@@ -279,7 +279,7 @@ async function getTwitchHome() {
                         viewers = stRes.data.reduce((sum, stream) => sum + stream.viewer_count, 0);
                     }
                     cat.viewer_count = viewers;
-                } catch(e) { cat.viewer_count = 0; }
+                } catch (e) { cat.viewer_count = 0; }
                 return cat;
             });
             await Promise.all(catPromises);
@@ -334,7 +334,7 @@ function renderHome() {
                 const card = document.createElement('div');
                 card.className = 'category-card';
                 let thumb = item.box_art_url.replace('{width}', '300').replace('{height}', '400');
-                
+
                 let viewersHtml = '';
                 if (item.viewer_count !== undefined) {
                     viewersHtml = `<div class="badge-viewers">${formatViewers(item.viewer_count)}</div>`;
@@ -434,7 +434,7 @@ async function getFollowData() {
     try {
         const folRes = await twitchFetch(`https://api.twitch.tv/helix/streams/followed?user_id=${userId}&first=100`);
         let streams = folRes.data || [];
-        
+
         let liveUsers = [];
         if (streams.length > 0) {
             const userIds = streams.map(s => `id=${s.user_id}`).join('&');
@@ -456,7 +456,7 @@ async function getFollowData() {
         if (liveUsers.length > 0) {
             followDataRows.push({ type: "avatars", data: liveUsers });
         }
-        
+
         renderFollowScreen();
     } catch (e) {
         console.error(e);
@@ -468,7 +468,7 @@ async function getFollowData() {
 function renderFollowScreen() {
     const viewArea = document.getElementById('main-view-area');
     if (!viewArea) return;
-    
+
     let html = '<div id="follow-view" style="padding-top:20px; padding-bottom:60px; display:flex; flex-direction:column; align-items:center; gap:20px;">';
     followDataRows.forEach((row, rowIndex) => {
         if (row.type === 'login_btn') {
@@ -514,9 +514,9 @@ function renderFollowScreen() {
 function updateFollowSelection() {
     if (followDataRows.length === 0) return;
     const currentRowData = followDataRows[followActiveRow];
-    
+
     document.querySelectorAll('#follow-view .channel-card, #follow-view .live-avatar-small').forEach(c => c.classList.remove('selected'));
-    
+
     if (currentRowData && currentRowData.type === 'login_btn') {
         const btn = document.querySelector('#follow-view .login-btn');
         if (btn) btn.classList.toggle('focused', !inMenu);
@@ -591,11 +591,11 @@ async function showProfileScreen() {
             const res = await twitchFetch('https://api.twitch.tv/helix/users');
             const user = res.data && res.data[0];
             const userName = user ? user.display_name : "Unknown User";
-            
+
             // Debug info
             const tokenStatus = refreshToken ? "Refresh Token: Present" : "Refresh Token: Missing!";
             const idStatus = userId ? "User ID: " + userId : "User ID: Missing!";
-            
+
             viewArea.innerHTML = `
                 <div class="full-page-screen">
                     <h1 style="color:${textColor}; font-size:48px; margin-bottom: 20px;">Hello, ${userName}!</h1>
@@ -660,11 +660,12 @@ function updateNav() {
         indicator.style.left = active.offsetLeft + 'px';
     }
     menuItems.forEach((m, i) => m.classList.toggle('active-text', i === currentFocusIndex));
-    
+
     if (searchDropdown && searchInput) {
         const isOnLens = active && active.id === 'menu-search' && inMenu;
         if (isSearchInputFocused || isOnLens) {
             searchDropdown.classList.add('search-open');
+            searchInput.disabled = false;
             if (isSearchInputFocused) {
                 setTimeout(() => { searchInput.focus(); }, 100);
             } else {
@@ -673,6 +674,7 @@ function updateNav() {
         } else {
             searchDropdown.classList.remove('search-open');
             searchInput.blur();
+            searchInput.disabled = true;
         }
     }
 
@@ -729,7 +731,7 @@ async function executeSearch(query) {
                         viewers = stRes.data.reduce((sum, stream) => sum + stream.viewer_count, 0);
                     }
                     cat.viewer_count = viewers;
-                } catch(e) { cat.viewer_count = 0; }
+                } catch (e) { cat.viewer_count = 0; }
                 return cat;
             });
             await Promise.all(catPromises);
@@ -741,7 +743,7 @@ async function executeSearch(query) {
                 try {
                     const folRes = await twitchFetch(`https://api.twitch.tv/helix/channels/followers?broadcaster_id=${c.id}`);
                     c.follower_count = folRes.total || 0;
-                } catch(e) {
+                } catch (e) {
                     c.follower_count = 0;
                 }
                 return c;
@@ -751,28 +753,24 @@ async function executeSearch(query) {
         }
 
         searchDataRows = [];
+        const limit = appSettings.performanceMode ? 3 : 6;
+
         if (liveStreams.length > 0) {
-            let data = liveStreams;
-            if (appSettings.performanceMode) data = data.slice(0, 3);
-            searchDataRows.push({ title: 'Canali Live', type: 'live', data: data });
+            searchDataRows.push({ title: 'Canali Live', type: 'live', data: liveStreams.slice(0, limit) });
         }
         if (popularCategories.length > 0) {
-            let data = popularCategories;
-            if (appSettings.performanceMode) data = data.slice(0, 3);
-            searchDataRows.push({ title: 'Categorie', type: 'category', data: data });
+            searchDataRows.push({ title: 'Categorie', type: 'category', data: popularCategories.slice(0, limit) });
         }
         if (allChannels.length > 0) {
-            let data = allChannels;
-            if (appSettings.performanceMode) data = data.slice(0, 3);
-            searchDataRows.push({ title: 'Canali', type: 'channel', data: data });
+            searchDataRows.push({ title: 'Canali', type: 'channel', data: allChannels.slice(0, limit) });
         }
 
         if (searchDataRows.length === 0) {
             resultsArea.innerHTML = `<div style="text-align:center; padding-top:60px; color:#adadb8; font-size:24px;">Nessun risultato per "${query}"</div>`;
             return;
         }
-        
-        searchActiveRow = -1; 
+
+        searchActiveRow = -1;
         searchActiveCol = 0;
         renderSearchResults();
     } catch (e) {
@@ -812,14 +810,14 @@ function renderSearchResults() {
                 const box = item.box_art_url || '';
                 html += `
                     <div class="category-card ${selClass}" id="search-card-${rIdx}-${cIdx}" style="flex-shrink:0; width:200px; height:266px;">
-                        <img src="${box.replace('{width}','200').replace('{height}','266')}" style="width:100%; height:100%; border-radius:10px; object-fit:cover;">
+                        <img src="${box.replace('{width}', '200').replace('{height}', '266')}" style="width:100%; height:100%; border-radius:10px; object-fit:cover;">
                         <div style="margin-top:10px; font-weight:bold; color:${titleColor}; text-align:center;">${item.name}</div>
                     </div>`;
             } else if (row.type === 'channel') {
                 const thumb = item.thumbnail_url || '';
                 html += `
                     <div class="search-channel-card ${selClass}" id="search-card-${rIdx}-${cIdx}" style="flex-shrink:0; width:350px;">
-                        <img src="${thumb.replace('{width}','150').replace('{height}','150')}" class="search-avatar">
+                        <img src="${thumb.replace('{width}', '150').replace('{height}', '150')}" class="search-avatar">
                         <div class="search-info">
                             <div class="search-name">${item.display_name}</div>
                             <div class="search-game">${item.game_name || 'Offline'}</div>
@@ -835,12 +833,12 @@ function renderSearchResults() {
 
 function updateSearchSelection() {
     document.querySelectorAll('#search-results-area .selected').forEach(el => el.classList.remove('selected'));
-    
+
     if (searchActiveRow >= 0 && searchActiveCol >= 0) {
         const activeCard = document.getElementById(`search-card-${searchActiveRow}-${searchActiveCol}`);
         if (activeCard) {
             activeCard.classList.add('selected');
-            
+
             const rowDiv = document.getElementById(`search-row-${searchActiveRow}`);
             if (rowDiv) {
                 let cardWidth = activeCard.offsetWidth + 30; // 30 is gap
@@ -856,15 +854,15 @@ function updateSearchSelection() {
 async function openChannelView(loginName, isRefetch = false) {
     inChannelView = true;
     inMenu = false;
-    
+
     const viewArea = document.getElementById('main-view-area');
     if (!viewArea) return;
-    
+
     if (!isRefetch) {
         viewArea.innerHTML = `<div style="text-align:center; padding-top:100px; color:white;">Loading ${loginName}...</div>`;
         channelViewActiveRow = 0;
         channelViewActiveCol = 0;
-        channelViewColIndices = {0: 0, 2: 0};
+        channelViewColIndices = { 0: 0, 2: 0 };
         channelClipFilter = '7d';
         channelClipFilterIdx = 0;
     }
@@ -878,7 +876,7 @@ async function openChannelView(loginName, isRefetch = false) {
         // 2. Follower count & status
         const folRes = await twitchFetch(`https://api.twitch.tv/helix/channels/followers?broadcaster_id=${user.id}`);
         user.follower_count = folRes.total || 0;
-        
+
         if (userId && userToken) {
             const isFolRes = await twitchFetch(`https://api.twitch.tv/helix/channels/followed?user_id=${userId}&broadcaster_id=${user.id}`);
             channelIsFollowing = isFolRes.data && isFolRes.data.length > 0;
@@ -892,7 +890,7 @@ async function openChannelView(loginName, isRefetch = false) {
         // 4. VODs
         const vodRes = await twitchFetch(`https://api.twitch.tv/helix/videos?user_id=${user.id}&type=archive&first=20`);
         let vods = vodRes.data || [];
-        
+
         let combinedVods = [];
         if (isLive) {
             combinedVods.push({ isLiveItem: true, ...liveStream });
@@ -929,12 +927,12 @@ function renderChannelView() {
     if (!viewArea) return;
     const isLight = document.body.classList.contains('theme-light');
     const titleColor = isLight ? '#000' : 'white';
-    
+
     const user = channelViewData.user;
     const isLive = channelViewData.isLive;
-    
+
     let html = `<div id="channel-view" style="padding-bottom:60px; position:relative;">`;
-    
+
     // Header
     html += `
         <div class="channel-header">
@@ -984,7 +982,7 @@ function renderChannelView() {
                         <div class="filter-btn ${channelClipFilter === '30d' ? 'active' : ''}" id="channel-filter-1">30 Giorni</div>
                     </div>
                  </div>`;
-                 
+
         if (channelViewData.clips.length > 0) {
             html += `<div style="width:100%; overflow:visible; perspective:1200px; margin-bottom:40px;">
                         <div id="channel-row-2" class="channel-grid">`;
@@ -1010,7 +1008,7 @@ function renderChannelView() {
     html += `</div>`;
     viewArea.innerHTML = html;
     updateChannelSelection();
-    
+
     viewArea.scrollTop = 0;
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -1031,7 +1029,7 @@ function updateChannelSelection() {
             let cardWidth = 600 + 20;
             let offset = 80 - (channelViewColIndices[0] * cardWidth);
             rowDiv.style.transform = `translateX(${offset}px)`;
-            
+
             const card = document.getElementById(`channel-card-0-${channelViewColIndices[0]}`);
             if (card) {
                 card.classList.add('selected');
@@ -1051,7 +1049,7 @@ function updateChannelSelection() {
             let cardWidth = 600 + 20;
             let offset = 80 - (channelViewColIndices[2] * cardWidth);
             rowDiv.style.transform = `translateX(${offset}px)`;
-            
+
             const card = document.getElementById(`channel-card-2-${channelViewColIndices[2]}`);
             if (card) {
                 card.classList.add('selected');
@@ -1066,10 +1064,10 @@ async function openCategoryView(category, isRefetch = false) {
     inCategoryView = true;
     inMenu = false;
     currentCategoryData = category;
-    
+
     const viewArea = document.getElementById('main-view-area');
     if (!viewArea) return;
-    
+
     if (!isRefetch) {
         viewArea.innerHTML = `<div style="text-align:center; padding-top:100px; color:white;">Loading ${category.name}...</div>`;
     }
@@ -1104,7 +1102,7 @@ async function openCategoryView(category, isRefetch = false) {
             categoryColIndices = new Array(categoryDataRows.length).fill(0);
             categoryFilterIdx = 0;
         }
-        
+
         renderCategoryView();
     } catch (e) {
         console.error(e);
@@ -1117,11 +1115,11 @@ function renderCategoryView() {
     if (!viewArea) return;
     const isLight = document.body.classList.contains('theme-light');
     const titleColor = isLight ? '#000' : 'white';
-    
-    let boxThumb = currentCategoryData.box_art_url.replace('{width}','285').replace('{height}','380');
-    let bgThumb = currentCategoryData.box_art_url.replace('{width}','1200').replace('{height}','1200');
+
+    let boxThumb = currentCategoryData.box_art_url.replace('{width}', '285').replace('{height}', '380');
+    let bgThumb = currentCategoryData.box_art_url.replace('{width}', '1200').replace('{height}', '1200');
     let viewers = formatViewers(currentCategoryData.viewer_count || 0);
-    
+
     let html = `
         <div id="category-view" style="padding-bottom:60px; position:relative;">
             
@@ -1161,28 +1159,28 @@ function renderCategoryView() {
                 </div>
             </div>
     `;
-    
+
     categoryDataRows.forEach((row, rowIndex) => {
         html += `<h3 style="color:${titleColor}; margin-left:80px; margin-bottom:30px; margin-top:20px; font-size:26px;">${row.title}</h3>`;
         html += `<div style="width:100%; overflow:visible; perspective:1200px; margin-bottom:40px;">
                     <div id="cat-row-${rowIndex}" class="channel-grid"></div>
                  </div>`;
     });
-    
+
     html += `</div>`;
     viewArea.innerHTML = html;
-    
+
     categoryDataRows.forEach((row, rowIndex) => {
         const rowDiv = document.getElementById(`cat-row-${rowIndex}`);
         if (!rowDiv) return;
-        
+
         row.data.forEach((item, colIndex) => {
             const card = document.createElement('div');
             card.className = 'channel-card';
             card.id = `cat-card-${rowIndex}-${colIndex}`;
-            
+
             if (row.type === 'stream') {
-                let thumb = item.thumbnail_url.replace('{width}','800').replace('{height}','450');
+                let thumb = item.thumbnail_url.replace('{width}', '800').replace('{height}', '450');
                 card.innerHTML = `
                     <div class="badge-live">LIVE</div>
                     <div class="badge-viewers">${formatViewers(item.viewer_count)}</div>
@@ -1204,9 +1202,9 @@ function renderCategoryView() {
             rowDiv.appendChild(card);
         });
     });
-    
+
     updateCategorySelection();
-    
+
     // Scroll to top on initial render
     viewArea.scrollTop = 0;
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1216,13 +1214,13 @@ function updateCategorySelection() {
     categoryDataRows.forEach((row, rowIndex) => {
         const rowDiv = document.getElementById(`cat-row-${rowIndex}`);
         if (!rowDiv) return;
-        
+
         let targetColIdx = categoryColIndices[rowIndex] || 0;
         let cardWidth = 600 + 20; // Match .channel-card width (600) + gap (20)
         let offset = 80 - (targetColIdx * cardWidth);
-        
+
         rowDiv.style.transform = `translateX(${offset}px)`;
-        
+
         Array.from(rowDiv.children).forEach((c, idx) => {
             if (rowIndex === categoryActiveRow && idx === categoryActiveCol) {
                 c.classList.add('selected');
@@ -1231,7 +1229,7 @@ function updateCategorySelection() {
             }
         });
     });
-    
+
     // Smooth scroll to active row
     if (categoryActiveRow >= 0) {
         const rowEl = document.getElementById(`cat-row-${categoryActiveRow}`);
@@ -1257,13 +1255,13 @@ function handleKeydown(e) {
             }
             return;
         }
-        
+
         // Se la UI è nascosta, qualsiasi freccia o OK la fa riapparire
         if (isUIHidden) {
             if (e.keyCode === 13 || (e.keyCode >= 37 && e.keyCode <= 40)) { showPlayerUI(); updatePlayerFocus(); }
             return;
         }
-        
+
         showPlayerUI(); // Resetta il timer di auto-hide
 
         // Navigazione Menu Qualità
@@ -1276,25 +1274,25 @@ function handleKeydown(e) {
             }
             updatePlayerFocus(); return;
         }
-        
+
         // Navigazione Bottoni Player
         if (e.keyCode === 39 && playerFocusIndex < playerBtns.length - 1) playerFocusIndex++;
         if (e.keyCode === 37 && playerFocusIndex > 0) playerFocusIndex--;
         if (e.keyCode === 13) { // Tasto OK
             if (playerFocusIndex === 0) { // Play/Pause
                 try {
-                    if (isPlaying) { 
-                        webapis.avplay.pause(); 
-                        isPlaying = false; 
-                        document.getElementById('icon-pause').style.display='none'; 
-                        document.getElementById('icon-play').style.display='block'; 
-                    } else { 
-                        webapis.avplay.play(); 
-                        isPlaying = true; 
-                        document.getElementById('icon-pause').style.display='block'; 
-                        document.getElementById('icon-play').style.display='none'; 
+                    if (isPlaying) {
+                        webapis.avplay.pause();
+                        isPlaying = false;
+                        document.getElementById('icon-pause').style.display = 'none';
+                        document.getElementById('icon-play').style.display = 'block';
+                    } else {
+                        webapis.avplay.play();
+                        isPlaying = true;
+                        document.getElementById('icon-pause').style.display = 'block';
+                        document.getElementById('icon-play').style.display = 'none';
                     }
-                } catch(e) { console.error('AVPlay play/pause error', e); }
+                } catch (e) { console.error('AVPlay play/pause error', e); }
             } else if (playerFocusIndex === 1) { // Follow (API nuova V2)
                 if (userToken && currentStreamId) {
                     twitchFetch(`https://api.twitch.tv/helix/channels/followers`, {
@@ -1304,7 +1302,7 @@ function handleKeydown(e) {
                 }
             } else if (playerFocusIndex === 2) { // Menu Qualità
                 const menu = document.getElementById('quality-menu');
-                menu.innerHTML = qualityOptions.map((q, i) => `<div class="quality-item ${i===0?'focused':''}">${q.name}</div>`).join('');
+                menu.innerHTML = qualityOptions.map((q, i) => `<div class="quality-item ${i === 0 ? 'focused' : ''}">${q.name}</div>`).join('');
                 menu.style.display = 'flex'; isQualityMenuOpen = true; qualityFocusIndex = 0;
             } else if (playerFocusIndex === 3) { // Toggle Chat
                 isChatOpen = !isChatOpen;
@@ -1384,13 +1382,15 @@ function handleKeydown(e) {
                 return;
             }
 
+            if (!channelViewData) return; // Prevent crashes if channel failed to load
+
             if (channelViewActiveRow === -1) {
                 // Header (Follow button)
                 if (e.keyCode === 40) { channelViewActiveRow = channelViewData.vods.length > 0 ? 0 : (channelViewData.clips.length > 0 ? 1 : -1); updateChannelSelection(); }
                 else if (e.keyCode === 13) {
                     if (userToken) {
                         const method = channelIsFollowing ? 'DELETE' : 'POST';
-                        const url = channelIsFollowing 
+                        const url = channelIsFollowing
                             ? `https://api.twitch.tv/helix/channels/followers?broadcaster_id=${channelViewData.user.id}&user_id=${userId}`
                             : `https://api.twitch.tv/helix/channels/followers`;
                         const opts = { method: method, headers: { 'Content-Type': 'application/json' } };
@@ -1465,6 +1465,8 @@ function handleKeydown(e) {
                 renderHome();
                 return;
             }
+
+            if (categoryDataRows.length === 0) return; // Prevent crashes if category failed to load
 
             if (categoryActiveRow === -1) {
                 if (e.keyCode === 39) { if (categoryFilterIdx < 3) categoryFilterIdx++; renderCategoryView(); }
@@ -1564,31 +1566,48 @@ function handleKeydown(e) {
             if (e.keyCode === 39) { // Right
                 colIndices[activeRow]++;
                 if (currentRowData.isHero) {
-                    // Loop infinito Hero: se arriviamo oltre il secondo set, saltiamo al centro senza animazione
+                    updateHomeSelection();
                     if (colIndices[activeRow] >= originalHeroCount * 2) {
-                        const rowDiv = document.getElementById(`row-${activeRow}`);
-                        rowDiv.style.transition = 'none';
-                        colIndices[activeRow] = originalHeroCount;
-                        updateHomeSelection();
-                        setTimeout(() => rowDiv.style.transition = '', 50);
-                    } else { updateHomeSelection(); }
+                        setTimeout(() => {
+                            if (colIndices[activeRow] >= originalHeroCount * 2) {
+                                const rowDiv = document.getElementById(`row-${activeRow}`);
+                                if (rowDiv) {
+                                    rowDiv.style.transition = 'none';
+                                    colIndices[activeRow] -= originalHeroCount;
+                                    updateHomeSelection();
+                                    rowDiv.offsetHeight; // force reflow
+                                    rowDiv.style.transition = '';
+                                }
+                            }
+                        }, 750);
+                    }
                 } else if (colIndices[activeRow] >= currentLen) {
                     colIndices[activeRow] = currentLen - 1;
+                    updateHomeSelection();
                 } else { updateHomeSelection(); }
             }
             if (e.keyCode === 37) { // Left
                 colIndices[activeRow]--;
                 if (currentRowData.isHero) {
-                    // Loop infinito Hero: se scendiamo sotto il primo set, saltiamo al centro senza animazione
+                    if (colIndices[activeRow] < 0) colIndices[activeRow] = 0;
+                    updateHomeSelection();
                     if (colIndices[activeRow] < originalHeroCount) {
-                        const rowDiv = document.getElementById(`row-${activeRow}`);
-                        rowDiv.style.transition = 'none';
-                        colIndices[activeRow] = originalHeroCount * 2 - 1;
-                        updateHomeSelection();
-                        setTimeout(() => rowDiv.style.transition = '', 50);
-                    } else { updateHomeSelection(); }
+                        setTimeout(() => {
+                            if (colIndices[activeRow] < originalHeroCount) {
+                                const rowDiv = document.getElementById(`row-${activeRow}`);
+                                if (rowDiv) {
+                                    rowDiv.style.transition = 'none';
+                                    colIndices[activeRow] += originalHeroCount;
+                                    updateHomeSelection();
+                                    rowDiv.offsetHeight; // force reflow
+                                    rowDiv.style.transition = '';
+                                }
+                            }
+                        }, 750);
+                    }
                 } else if (colIndices[activeRow] < 0) {
                     colIndices[activeRow] = 0;
+                    updateHomeSelection();
                 } else { updateHomeSelection(); }
             }
             if (e.keyCode === 40 && activeRow < homeDataRows.length - 1) { activeRow++; updateHomeSelection(); }
@@ -1684,19 +1703,19 @@ async function getStreamM3u8(channel) {
     });
     const tokenData = await tokenRes.json();
     if (!tokenData.data || !tokenData.data.streamPlaybackAccessToken) return null;
-    
+
     const { value, signature } = tokenData.data.streamPlaybackAccessToken;
-    
+
     // 2. Componi e Leggi il file M3U8 Master da Usher
     const m3u8Url = `https://usher.ttvnw.net/api/channel/hls/${channel}.m3u8?allow_source=true&fast_bread=true&sig=${signature}&token=${encodeURIComponent(value)}`;
     const m3u8Res = await fetch(m3u8Url);
     const m3u8Text = await m3u8Res.text();
-    
+
     // 3. Estrai le varianti (Risoluzioni)
     const lines = m3u8Text.split('\n');
     const streams = [{ name: 'Auto', url: m3u8Url }]; // La prima è sempre l'Auto nativa
     let currentName = null;
-    
+
     lines.forEach(line => {
         if (line.startsWith('#EXT-X-STREAM-INF')) {
             const nameMatch = line.match(/VIDEO="([^"]+)"/);
@@ -1715,15 +1734,15 @@ async function openNativePlayer(channelName, channelId) {
     currentStreamId = channelId;
     document.getElementById('player-container').style.display = 'block';
     document.body.classList.add('player-active');
-    
+
     qualityOptions = await getStreamM3u8(channelName);
     if (!qualityOptions || qualityOptions.length === 0) {
         closeNativePlayer(); return;
     }
-    
+
     playVideoUrl(qualityOptions[0].url); // Fai partire "Auto"
     document.getElementById('twitch-chat').src = `https://www.twitch.tv/embed/${channelName}/chat?parent=localhost&darkpopout`;
-    
+
     showPlayerUI();
     updatePlayerFocus();
 }
@@ -1732,34 +1751,34 @@ function playVideoUrl(url) {
     try {
         webapis.avplay.stop();
         webapis.avplay.close();
-    } catch(e) {}
+    } catch (e) { }
 
     try {
         webapis.avplay.open(url);
         webapis.avplay.setDisplayRect(0, 0, 1920, 1080); // Risoluzione standard TV
-        
-        webapis.avplay.prepareAsync(function() {
+
+        webapis.avplay.prepareAsync(function () {
             webapis.avplay.play();
             isPlaying = true;
             document.getElementById('icon-pause').style.display = 'block';
             document.getElementById('icon-play').style.display = 'none';
-        }, function(error) {
+        }, function (error) {
             console.error("AVPlay prepare error: " + error);
         });
-    } catch(e) {
+    } catch (e) {
         console.error("AVPlay open error: ", e);
     }
 }
 
 function closeNativePlayer() {
     inPlayer = false;
-    
+
     // Chiusura aggressiva vitale per Smart TV AVPlay
     try {
         webapis.avplay.stop();
         webapis.avplay.close();
-    } catch(e) { console.error('AVPlay close error', e); }
-    
+    } catch (e) { console.error('AVPlay close error', e); }
+
     document.body.classList.remove('player-active');
     document.getElementById('player-container').style.display = 'none';
     document.getElementById('twitch-chat').src = '';
