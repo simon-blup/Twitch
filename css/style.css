@@ -337,6 +337,8 @@ body.menu-hidden #search-view {
     transform: scale(0.95);
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
     flex-shrink: 0;
+    box-sizing: border-box;
+    border: 4px solid transparent;
 }
 
 body.theme-light .channel-card,
@@ -394,6 +396,8 @@ body.theme-light .live-avatars-bar {
     height: 450px;
     transform: scale(0.75);
     opacity: 0.3;
+    box-sizing: border-box;
+    border: 5px solid transparent;
 }
 
 .hero-card.selected {
