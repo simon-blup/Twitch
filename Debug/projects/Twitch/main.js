@@ -6,8 +6,8 @@ let userId = localStorage.getItem('twitch_user_id') || '';
 // --- VARIABILI PLAYER NATIVO ---
 let inPlayer = false;
 let uiTimeout = null;
-let playerFocusIndex = 0; // 0: Play, 1: Follow, 2: Quality, 3: Chat
-const playerBtns = ['btn-play', 'btn-follow', 'btn-quality', 'btn-chat'];
+let playerFocusIndex = 0; // 0: Play, 1: Quality, 2: Chat
+const playerBtns = ['btn-play', 'btn-quality', 'btn-chat'];
 let isPlaying = true;
 let isChatOpen = false;
 let isQualityMenuOpen = false;
@@ -931,6 +931,16 @@ async function openChannelView(loginName, isRefetch = false) {
             clips
         };
 
+        if (!isRefetch) {
+            if (combinedVods.length > 0) {
+                channelViewActiveRow = 0;
+            } else if (clips.length > 0 || channelClipFilter === '30d') {
+                channelViewActiveRow = 1;
+            } else {
+                channelViewActiveRow = -2; // Indicates no focusable elements
+            }
+        }
+
         renderChannelView();
     } catch (e) {
         console.error(e);
@@ -960,9 +970,6 @@ function renderChannelView() {
                 <h1 class="channel-name-large">${user.display_name}</h1>
                 <div class="channel-stats">${formatViewers(user.follower_count)} followers</div>
                 ${user.description ? `<div style="color:${isLight ? '#666' : '#adadb8'}; margin-top:10px; font-size:16px; max-width:800px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${user.description}</div>` : ''}
-            </div>
-            <div id="channel-follow-btn" class="follow-btn-large ${channelIsFollowing ? 'unfollow' : ''}">
-                ${channelIsFollowing ? 'Unfollow' : 'Follow'}
             </div>
         </div>
     `;
@@ -1017,8 +1024,12 @@ function renderChannelView() {
             html += `   </div>
                      </div>`;
         } else {
-            html += `<div style="color:#adadb8; margin-left:80px; font-size:20px; margin-bottom:40px;">Nessuna clip in questo periodo.</div>`;
+            html += `<div style="color:#adadb8; margin-left:80px; font-size:20px; margin-bottom:40px;">No clips available for this period.</div>`;
         }
+    }
+
+    if (channelViewData.vods.length === 0 && channelViewData.clips.length === 0 && channelClipFilter !== '30d') {
+        html += `<div style="text-align:center; color:#adadb8; font-size:24px; padding-top:100px; font-weight:300; letter-spacing:1px;">No data available for this channel</div>`;
     }
 
     html += `</div>`;
@@ -1035,22 +1046,25 @@ function updateChannelSelection() {
         el.classList.remove('selected', 'focused');
     });
 
-    if (channelViewActiveRow === -1) {
-        // Follow button
-        document.getElementById('channel-follow-btn').classList.add('focused');
-        document.getElementById('channel-follow-btn').scrollIntoView({ behavior: 'smooth', block: 'center' });
-    } else if (channelViewActiveRow === 0) {
-        const rowDiv = document.getElementById('channel-row-0');
-        if (rowDiv) {
-            let cardWidth = 600 + 20;
-            let offset = 80 - (channelViewColIndices[0] * cardWidth);
-            rowDiv.style.transform = `translateX(${offset}px)`;
+    const row0 = document.getElementById('channel-row-0');
+    if (row0) {
+        let cardWidth = 600 + 20;
+        let offset = 80 - ((channelViewColIndices[0] || 0) * cardWidth);
+        row0.style.transform = `translateX(${offset}px)`;
+    }
 
-            const card = document.getElementById(`channel-card-0-${channelViewColIndices[0]}`);
-            if (card) {
-                card.classList.add('selected');
-                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
+    const row2 = document.getElementById('channel-row-2');
+    if (row2) {
+        let cardWidth = 600 + 20;
+        let offset = 80 - ((channelViewColIndices[2] || 0) * cardWidth);
+        row2.style.transform = `translateX(${offset}px)`;
+    }
+
+    if (channelViewActiveRow === 0) {
+        const card = document.getElementById(`channel-card-0-${channelViewColIndices[0] || 0}`);
+        if (card) {
+            card.classList.add('selected');
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     } else if (channelViewActiveRow === 1) {
         // Filters
@@ -1060,17 +1074,10 @@ function updateChannelSelection() {
             filterBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     } else if (channelViewActiveRow === 2) {
-        const rowDiv = document.getElementById('channel-row-2');
-        if (rowDiv) {
-            let cardWidth = 600 + 20;
-            let offset = 80 - (channelViewColIndices[2] * cardWidth);
-            rowDiv.style.transform = `translateX(${offset}px)`;
-
-            const card = document.getElementById(`channel-card-2-${channelViewColIndices[2]}`);
-            if (card) {
-                card.classList.add('selected');
-                card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
+        const card = document.getElementById(`channel-card-2-${channelViewColIndices[2] || 0}`);
+        if (card) {
+            card.classList.add('selected');
+            card.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
     }
 }
@@ -1429,28 +1436,9 @@ function handleKeydown(e) {
 
             if (!channelViewData) return; // Prevent crashes if channel failed to load
 
-            if (channelViewActiveRow === -1) {
-                // Header (Follow button)
-                if (e.keyCode === 40) { channelViewActiveRow = channelViewData.vods.length > 0 ? 0 : (channelViewData.clips.length > 0 ? 1 : -1); updateChannelSelection(); }
-                else if (e.keyCode === 13) {
-                    if (userToken) {
-                        const method = channelIsFollowing ? 'DELETE' : 'POST';
-                        const url = channelIsFollowing
-                            ? `https://api.twitch.tv/helix/channels/followers?broadcaster_id=${channelViewData.user.id}&user_id=${userId}`
-                            : `https://api.twitch.tv/helix/channels/followers`;
-                        const opts = { method: method, headers: { 'Content-Type': 'application/json' } };
-                        if (!channelIsFollowing) {
-                            opts.body = JSON.stringify({ broadcaster_id: channelViewData.user.id, user_id: userId });
-                        }
-                        twitchFetch(url, opts).then(() => {
-                            openChannelView(channelViewData.user.login, true);
-                        });
-                    }
-                }
-            } else if (channelViewActiveRow === 0) {
+            if (channelViewActiveRow === 0) {
                 // VODs
-                if (e.keyCode === 38) { channelViewActiveRow = -1; updateChannelSelection(); }
-                else if (e.keyCode === 40) { channelViewActiveRow = 1; updateChannelSelection(); }
+                if (e.keyCode === 40) { channelViewActiveRow = 1; updateChannelSelection(); }
                 else if (e.keyCode === 39) {
                     if (channelViewActiveCol < channelViewData.vods.length - 1) {
                         channelViewActiveCol++;
@@ -1473,7 +1461,13 @@ function handleKeydown(e) {
                 }
             } else if (channelViewActiveRow === 1) {
                 // Filters
-                if (e.keyCode === 38) { channelViewActiveRow = channelViewData.vods.length > 0 ? 0 : -1; channelViewActiveCol = channelViewColIndices[0] || 0; updateChannelSelection(); }
+                if (e.keyCode === 38) { 
+                    if (channelViewData.vods.length > 0) {
+                        channelViewActiveRow = 0; 
+                        channelViewActiveCol = channelViewColIndices[0] || 0; 
+                        updateChannelSelection(); 
+                    }
+                }
                 else if (e.keyCode === 40 && channelViewData.clips.length > 0) { channelViewActiveRow = 2; channelViewActiveCol = channelViewColIndices[2] || 0; updateChannelSelection(); }
                 else if (e.keyCode === 39) { if (channelClipFilterIdx < 1) channelClipFilterIdx++; updateChannelSelection(); }
                 else if (e.keyCode === 37) { if (channelClipFilterIdx > 0) channelClipFilterIdx--; updateChannelSelection(); }
