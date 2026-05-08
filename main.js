@@ -845,16 +845,19 @@ function renderSearchResults() {
                     </div>`;
             } else if (row.type === 'category') {
                 const box = item.box_art_url || '';
+                // Search API often returns hardcoded URLs like -52x72.jpg instead of {width} templates
+                const highResBox = box.replace(/-[0-9]+x[0-9]+\./, '-400x532.').replace('{width}', '400').replace('{height}', '532');
                 html += `
                     <div class="category-card ${selClass}" id="search-card-${rIdx}-${cIdx}" style="flex-shrink:0; width:200px; height:266px;">
-                        <img src="${box.replace('{width}', '200').replace('{height}', '266')}" style="width:100%; height:100%; border-radius:10px; object-fit:cover;">
+                        <img src="${highResBox}" style="width:100%; height:100%; border-radius:10px; object-fit:cover;">
                         <div style="margin-top:10px; font-weight:bold; color:${titleColor}; text-align:center;">${item.name}</div>
                     </div>`;
             } else if (row.type === 'channel') {
                 const thumb = item.thumbnail_url || '';
+                const highResThumb = thumb.replace(/-[0-9]+x[0-9]+\./, '-300x300.').replace('{width}', '300').replace('{height}', '300');
                 html += `
                     <div class="search-channel-card ${selClass}" id="search-card-${rIdx}-${cIdx}" style="flex-shrink:0; width:350px;">
-                        <img src="${thumb.replace('{width}', '150').replace('{height}', '150')}" class="search-avatar">
+                        <img src="${highResThumb}" class="search-avatar">
                         <div class="search-info">
                             <div class="search-name">${item.display_name}</div>
                             <div class="search-game">${item.game_name || 'Offline'}</div>
@@ -1160,23 +1163,12 @@ function renderCategoryView() {
     const isLight = document.body.classList.contains('theme-light');
     const titleColor = isLight ? '#000' : 'white';
 
-    let boxThumb = currentCategoryData.box_art_url.replace('{width}', '285').replace('{height}', '380');
-    let bgThumb = currentCategoryData.box_art_url.replace('{width}', '1200').replace('{height}', '1200');
+    const rawBox = currentCategoryData.box_art_url || '';
+    let boxThumb = rawBox.replace(/-[0-9]+x[0-9]+\./, '-285x380.').replace('{width}', '285').replace('{height}', '380');
     let viewers = formatViewers(currentCategoryData.viewer_count || 0);
 
     let html = `
         <div id="category-view" style="padding-bottom:60px; position:relative;">
-            
-            <div style="position:absolute; top:0; left:0; width:100%; height:450px; 
-                        background-image:url('${bgThumb}'); 
-                        background-size:cover; 
-                        background-position:center 20%; 
-                        filter:blur(30px); 
-                        opacity:0.15; 
-                        z-index:-1;
-                        mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);
-                        -webkit-mask-image: linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,0) 100%);">
-            </div>
             
             <div style="display:flex; align-items:flex-end; gap:35px; margin-left:80px; margin-right:80px; margin-bottom:30px; padding-top:40px;">
                 <img src="${boxThumb}" style="width:150px; height:200px; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.8); object-fit:contain; background-color:#1a1a20;">
