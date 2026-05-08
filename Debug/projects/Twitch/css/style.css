@@ -693,7 +693,9 @@ body.theme-light .exit-menu-box {
     font-size: 42px;
     font-weight: bold;
     color: white;
-    margin-bottom: 50px;
+    margin: 0 0 50px 0;
+    padding: 0;
+    line-height: 1;
 }
 body.theme-light .exit-title {
     color: #000;
@@ -702,9 +704,11 @@ body.theme-light .exit-title {
     display: flex;
     gap: 40px;
     justify-content: center;
+    align-items: center;
 }
 .exit-btn {
-    padding: 20px 50px;
+    height: 70px;
+    padding: 0 50px;
     font-size: 26px;
     font-weight: bold;
     border-radius: 12px;
@@ -713,10 +717,12 @@ body.theme-light .exit-title {
     color: white;
     transition: all 0.3s ease;
     text-align: center;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
+    box-sizing: border-box;
     min-width: 150px;
+    margin: 0;
 }
 body.theme-light .exit-btn {
     background: #ddd;
