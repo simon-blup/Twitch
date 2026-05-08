@@ -70,7 +70,15 @@ window.onload = async function () {
         if (!userId && userToken) await fetchUserId();
     }
     updateNav();
-    loadContent();
+    
+    // Wait for the first home/follow load to complete
+    await loadContent();
+
+    // Hide splash screen smoothly
+    const splash = document.getElementById('splash-screen');
+    if (splash) {
+        splash.classList.add('hidden');
+    }
 
     const searchInput = document.getElementById('search-input');
     if (searchInput) {
@@ -657,8 +665,21 @@ function pollForToken(deviceCode, interval) {
             refreshToken = res.refresh_token || '';
             localStorage.setItem('twitch_access_token', userToken);
             localStorage.setItem('twitch_refresh_token', refreshToken);
+            
+            const splash = document.getElementById('splash-screen');
+            if (splash) splash.classList.remove('hidden');
+
             await fetchUserId();
-            currentFocusIndex = 1; inMenu = true; updateNav(); loadContent();
+            
+            // Pre-fetch Follow data in the background so it is ready
+            await getFollowData();
+
+            currentFocusIndex = 1; 
+            inMenu = true; 
+            updateNav(); 
+            await loadContent(); // Wait for Home data to be ready
+            
+            if (splash) splash.classList.add('hidden');
         }
     }, interval * 1000);
 }
