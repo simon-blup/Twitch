@@ -379,8 +379,29 @@ function renderHome() {
             });
         }
     });
+    homeDataRows.forEach((row, rowIndex) => {
+        const rowDiv = document.getElementById(`row-${rowIndex}`);
+        if (!rowDiv) return;
+        rowDiv.style.transition = 'none';
+        const cards = rowDiv.querySelectorAll('.channel-card, .category-card');
+        cards.forEach(c => c.style.transition = 'none');
+    });
+
     updateHomeSelection();
+
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            homeDataRows.forEach((row, rowIndex) => {
+                const rowDiv = document.getElementById(`row-${rowIndex}`);
+                if (!rowDiv) return;
+                rowDiv.style.transition = '';
+                const cards = rowDiv.querySelectorAll('.channel-card, .category-card');
+                cards.forEach(c => c.style.transition = '');
+            });
+        });
+    });
 }
+
 
 function updateHomeSelection() {
     const centerX = window.innerWidth / 2;
