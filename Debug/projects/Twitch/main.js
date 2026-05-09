@@ -245,6 +245,10 @@ async function loadContent() {
         searchActiveRow = -1;
         searchActiveCol = 0;
         isSearchInputFocused = false;
+        
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) searchInput.value = '';
+
         if (viewArea) {
             viewArea.innerHTML = `
                 <div id="search-view" style="padding-bottom: 30px;">
