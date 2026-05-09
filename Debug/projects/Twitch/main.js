@@ -78,14 +78,14 @@ window.onload = async function () {
         await checkLoginStatus();
         if (!userId && userToken) await fetchUserId();
     }
-    
+
     if (!userToken) {
         currentFocusIndex = 4;
         inMenu = false;
     }
-    
+
     updateNav();
-    
+
     // Wait for the first home/follow load to complete
     await loadContent();
 
@@ -243,7 +243,7 @@ async function loadContent() {
     const menuItems = document.querySelectorAll('.menu-item');
     const selectedId = menuItems[currentFocusIndex].id;
     const viewArea = document.getElementById('main-view-area');
-    
+
     currentNavSequence++;
     const mySeq = currentNavSequence;
 
@@ -254,7 +254,7 @@ async function loadContent() {
         searchActiveRow = -1;
         searchActiveCol = 0;
         isSearchInputFocused = false;
-        
+
         const searchInput = document.getElementById('search-input');
         if (searchInput) searchInput.value = '';
 
@@ -367,13 +367,7 @@ function renderHome() {
                 card.className = 'category-card';
                 let thumb = item.box_art_url.replace('{width}', '300').replace('{height}', '400');
 
-                let viewersHtml = '';
-                if (item.viewer_count !== undefined) {
-                    viewersHtml = `<div class="badge-viewers">${formatViewers(item.viewer_count)}</div>`;
-                }
-
                 card.innerHTML = `
-                    ${viewersHtml}
                     <img src="${thumb}" style="width:100%; height:100%; object-fit:cover;">
                     <div class="card-info"><div style="font-size:20px; font-weight:bold; color:white;">${item.name}</div></div>`;
                 rowDiv.appendChild(card);
@@ -432,7 +426,7 @@ function updateHomeSelection() {
         const isActiveRow = !inMenu && activeRow === rowIndex;
 
         const cards = rowDiv.querySelectorAll(row.type === 'category' ? '.category-card' : '.channel-card');
-        
+
         cards.forEach((c, i) => {
             c.classList.remove('selected', 'hero-adjacent', 'hero-center');
             if (row.isHero) {
@@ -592,13 +586,13 @@ async function checkLiveFollowedStreams() {
         }
 
         const newLiveStreams = currentStreams.filter(s => !lastLiveStreamIds.has(s.user_id));
-        
+
         if (newLiveStreams.length > 0) {
             // Fetch profile images for new live streamers
             const userIds = newLiveStreams.map(s => `id=${s.user_id}`).join('&');
             const userRes = await twitchFetch(`https://api.twitch.tv/helix/users?${userIds}`);
             const userData = userRes.data || [];
-            
+
             newLiveStreams.forEach(stream => {
                 const user = userData.find(u => u.id === stream.user_id);
                 const profileImg = user ? user.profile_image_url : null;
@@ -618,14 +612,14 @@ function showNotification(userName, title, profileImg) {
 
     const notif = document.createElement('div');
     notif.className = 'notification';
-    
+
     let iconHtml = `
         <div class="notification-icon">
             <svg viewBox="0 0 24 24" width="30" height="30" fill="white">
                 <path d="M2.149 0l-1.612 4.119v16.836h5.731v3.045h3.224l3.045-3.045h4.657l6.269-6.269v-14.686h-21.314zm19.164 13.612l-3.582 3.582h-5.731l-3.045 3.045v-3.045h-4.836v-15.045h17.194v11.463zm-3.582-7.343v4.836h-2.149v-4.836h2.149zm-5.731 0v4.836h-2.149v-4.836h2.149z" />
             </svg>
         </div>`;
-    
+
     if (profileImg) {
         iconHtml = `<img src="${profileImg}" class="notification-avatar">`;
     }
@@ -639,13 +633,13 @@ function showNotification(userName, title, profileImg) {
     `;
 
     container.appendChild(notif);
-    
+
     // Auto remove from DOM after animation
     setTimeout(() => {
         if (notif.parentNode) {
             notif.parentNode.removeChild(notif);
         }
-    }, 5500);
+    }, 6500);
 }
 
 function showSettingsScreen() {
@@ -710,8 +704,8 @@ async function showProfileScreen() {
                     <div class="logout-btn ${!inMenu ? 'focused' : ''}" style="margin-top: 0;">LOG OUT</div>
                 </div>`;
         } catch (e) { console.error(e); }
-    } else { 
-        await startDeviceFlow(); 
+    } else {
+        await startDeviceFlow();
     }
 }
 
@@ -734,8 +728,8 @@ async function startDeviceFlow() {
             </div>`;
         pollForToken(data.device_code, data.interval);
         return true;
-    } catch (e) { 
-        console.error(e); 
+    } catch (e) {
+        console.error(e);
         return false;
     }
 }
@@ -754,7 +748,7 @@ function pollForToken(deviceCode, interval) {
             refreshToken = res.refresh_token || '';
             localStorage.setItem('twitch_access_token', userToken);
             localStorage.setItem('twitch_refresh_token', refreshToken);
-            
+
             // Re-show splash during this critical loading phase
             const splash = document.getElementById('splash-screen');
             if (splash) {
@@ -763,17 +757,17 @@ function pollForToken(deviceCode, interval) {
             }
 
             await fetchUserId();
-            
+
             // Pre-fetch Follow data
             await getFollowData();
 
-            currentFocusIndex = 1; 
-            inMenu = true; 
-            updateNav(); 
-            
+            currentFocusIndex = 1;
+            inMenu = true;
+            updateNav();
+
             // Wait for Home content to be fully ready
-            await loadContent(); 
-            
+            await loadContent();
+
             if (splash) splash.classList.add('hidden');
         }
     }, interval * 1000);
@@ -939,7 +933,7 @@ function renderSearchResults() {
     searchDataRows.forEach((row, rIdx) => {
         const isLast = rIdx === searchDataRows.length - 1;
         const rowStyle = (isLast && searchDataRows.length > 1) ? 'margin-top:auto;' : '';
-        
+
         html += `<div style="${rowStyle}">`;
         html += `<h3 style="color:${titleColor}; margin: 30px 0 20px 80px; font-size:26px;">${row.title}</h3>`;
         html += `<div style="overflow:hidden; width:100%; position:relative;">`;
@@ -1017,6 +1011,8 @@ async function openChannelView(loginName, isRefetch = false) {
 
     if (!isRefetch) {
         viewArea.innerHTML = `<div style="text-align:center; padding-top:100px; color:white;">Loading ${loginName}...</div>`;
+        viewArea.scrollTop = 0;
+        window.scrollTo({ top: 0, behavior: 'instant' });
         channelViewActiveRow = 0;
         channelViewActiveCol = 0;
         channelViewColIndices = { 0: 0, 2: 0 };
@@ -1178,7 +1174,7 @@ function renderChannelView() {
     updateChannelSelection();
 
     viewArea.scrollTop = 0;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
 function updateChannelSelection() {
@@ -1234,6 +1230,8 @@ async function openCategoryView(category, isRefetch = false) {
 
     if (!isRefetch) {
         viewArea.innerHTML = `<div style="text-align:center; padding-top:100px; color:white;">Loading ${category.name}...</div>`;
+        viewArea.scrollTop = 0;
+        window.scrollTo({ top: 0, behavior: 'instant' });
     }
 
     try {
@@ -1252,6 +1250,14 @@ async function openCategoryView(category, isRefetch = false) {
 
         const streamRes = await twitchFetch(`https://api.twitch.tv/helix/streams?game_id=${category.id}&first=20${langQuery}`);
         const streams = streamRes.data || [];
+
+        // Fetch viewer count if missing or to refresh it
+        try {
+            const viewerRes = await twitchFetch(`https://api.twitch.tv/helix/streams?game_id=${category.id}&first=100`);
+            if (viewerRes && viewerRes.data) {
+                category.viewer_count = viewerRes.data.reduce((sum, s) => sum + s.viewer_count, 0);
+            }
+        } catch (e) { console.error("Error fetching viewer count", e); }
 
         const clipRes = await twitchFetch(`https://api.twitch.tv/helix/clips?game_id=${category.id}&first=20${startedAt ? '&started_at=' + startedAt : ''}`);
         const clips = clipRes.data || [];
@@ -1291,7 +1297,7 @@ function renderCategoryView() {
                 <img src="${boxThumb}" style="width:150px; height:200px; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.8); object-fit:contain; background-color:#1a1a20;">
                 <div style="padding-bottom:5px; ${isLight ? '' : 'text-shadow: 0 4px 10px rgba(0,0,0,0.8);'} flex: 1;">
                     <h1 style="color:${titleColor}; font-size:48px; margin:0 0 8px 0; font-weight:bold;">${currentCategoryData.name}</h1>
-                    <div style="color:#bf94ff; font-size:22px; font-weight:600;">${viewers} viewers</div>
+                    <div style="color:#bf94ff; font-size:22px; font-weight:600;">${viewers} spettatori</div>
                 </div>
                 <div style="display:flex; gap:30px; padding-bottom:10px; align-items:center;">
                     <div style="display:flex; flex-direction:column; gap:5px;">
@@ -1360,7 +1366,7 @@ function renderCategoryView() {
 
     // Scroll to top on initial render
     viewArea.scrollTop = 0;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'instant' });
 }
 
 function updateCategorySelection() {
@@ -1645,11 +1651,11 @@ function handleKeydown(e) {
                 }
             } else if (channelViewActiveRow === 1) {
                 // Filters
-                if (e.keyCode === 38) { 
+                if (e.keyCode === 38) {
                     if (channelViewData.vods.length > 0) {
-                        channelViewActiveRow = 0; 
-                        channelViewActiveCol = channelViewColIndices[0] || 0; 
-                        updateChannelSelection(); 
+                        channelViewActiveRow = 0;
+                        channelViewActiveCol = channelViewColIndices[0] || 0;
+                        updateChannelSelection();
                     }
                 }
                 else if (e.keyCode === 40 && channelViewData.clips.length > 0) { channelViewActiveRow = 2; channelViewActiveCol = channelViewColIndices[2] || 0; updateChannelSelection(); }
@@ -2086,7 +2092,7 @@ function hideExitMenu() {
 function updateExitMenuFocus() {
     const btnCancel = document.getElementById('btn-exit-cancel');
     const btnConfirm = document.getElementById('btn-exit-confirm');
-    
+
     if (btnCancel) btnCancel.classList.toggle('focused', exitMenuFocusIdx === 0);
     if (btnConfirm) btnConfirm.classList.toggle('focused', exitMenuFocusIdx === 1);
 }

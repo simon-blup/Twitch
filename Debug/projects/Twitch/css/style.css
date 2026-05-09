@@ -927,7 +927,7 @@ body.theme-light .follow-btn-large.focused {
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 15px rgba(145, 70, 255, 0.9);
     border: 1px solid rgba(145, 70, 255, 0.5);
     animation: slideIn 0.5s cubic-bezier(0.23, 1, 0.32, 1) forwards,
-               fadeOut 0.5s cubic-bezier(0.23, 1, 0.32, 1) 4.5s forwards;
+               fadeOut 0.5s cubic-bezier(0.23, 1, 0.32, 1) 5.5s forwards;
     pointer-events: auto;
 }
 
