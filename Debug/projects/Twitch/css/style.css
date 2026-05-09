@@ -193,12 +193,14 @@ body.theme-light .search-input-pill {
     color: #666;
 }
 
-.search-input-pill:focus {
+.search-input-pill:focus,
+.search-input-pill.search-focused {
     background-color: #f0f0f0;
     box-shadow: 0 0 0 4px rgba(145, 70, 255, 0.5), 0 10px 30px rgba(0,0,0,0.5);
 }
 
-body.theme-light .search-input-pill:focus {
+body.theme-light .search-input-pill:focus,
+body.theme-light .search-input-pill.search-focused {
     background-color: #ffffff;
     box-shadow: 0 0 0 4px rgba(145, 70, 255, 0.5), 0 10px 30px rgba(0,0,0,0.1);
 }

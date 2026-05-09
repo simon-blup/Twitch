@@ -704,12 +704,15 @@ function updateNav() {
             searchDropdown.classList.add('search-open');
             searchInput.disabled = false;
             if (isSearchInputFocused) {
+                searchInput.classList.add('search-focused');
                 setTimeout(() => { searchInput.focus(); }, 100);
             } else {
+                searchInput.classList.remove('search-focused');
                 searchInput.blur();
             }
         } else {
             searchDropdown.classList.remove('search-open');
+            searchInput.classList.remove('search-focused');
             searchInput.blur();
             searchInput.disabled = true;
         }
@@ -1411,6 +1414,13 @@ function handleKeydown(e) {
                 updateNav();
                 updateSearchSelection();
             }
+            return;
+        }
+        if (e.keyCode === 27 || e.keyCode === 461 || e.keyCode === 10009) {
+            // Tizen Return or Escape to close keyboard but stay on the search bar
+            e.preventDefault();
+            document.getElementById('search-input').blur();
+            document.body.focus();
             return;
         }
         if (e.keyCode === 38) {
