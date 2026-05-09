@@ -1952,58 +1952,104 @@ function handleKeydown(e) {
 
 // --- MOTORE NATIVE PLAYER (GraphQL + HLS) ---
 async function getStreamM3u8(channel) {
-    // 1. Usa il client-id pubblico Web di Twitch per bypassare blocchi OAuth sullo streaming
-    const gqlBody = {
-        operationName: 'PlaybackAccessToken_Template',
-        query: `query PlaybackAccessToken_Template($login: String!, $isLive: Boolean!, $vodID: ID!, $isVod: Boolean!, $playerType: String!) {  streamPlaybackAccessToken(channelName: $login, params: {platform: "web", playerBackend: "mediaplayer", playerType: $playerType}) { value signature } }`,
-        variables: { isLive: true, login: channel, isVod: false, vodID: '', playerType: 'site' }
-    };
+    try {
+        // 1. Usa il client-id pubblico Web di Twitch per bypassare blocchi OAuth sullo streaming
+        const gqlBody = {
+            operationName: 'PlaybackAccessToken_Template',
+            query: `query PlaybackAccessToken_Template($login: String!, $playerType: String!) {  streamPlaybackAccessToken(channelName: $login, params: {platform: "web", playerBackend: "mediaplayer", playerType: $playerType}) { value signature } }`,
+            variables: { login: channel, playerType: 'site' }
+        };
 
-    const tokenRes = await fetch('https://gql.twitch.tv/gql', {
-        method: 'POST',
-        headers: { 'Client-ID': 'kimne78kx3ncx6brgo4mv6wki5h1ko', 'Content-Type': 'application/json' },
-        body: JSON.stringify(gqlBody)
-    });
-    const tokenData = await tokenRes.json();
-    if (!tokenData.data || !tokenData.data.streamPlaybackAccessToken) return null;
+        let headers = { 'Client-ID': 'kimne78kx3ncx6brgo4mv6wki5h1ko', 'Content-Type': 'application/json' };
+        // Se Tizen richiede di essere autenticati per non essere bloccati (opzionale)
+        // if (userToken) headers['Authorization'] = 'OAuth ' + userToken;
 
-    const { value, signature } = tokenData.data.streamPlaybackAccessToken;
-
-    // 2. Componi e Leggi il file M3U8 Master da Usher
-    const m3u8Url = `https://usher.ttvnw.net/api/channel/hls/${channel}.m3u8?allow_source=true&fast_bread=true&sig=${signature}&token=${encodeURIComponent(value)}`;
-    const m3u8Res = await fetch(m3u8Url);
-    const m3u8Text = await m3u8Res.text();
-
-    // 3. Estrai le varianti (Risoluzioni)
-    const lines = m3u8Text.split('\n');
-    const streams = [{ name: 'Auto', url: m3u8Url }]; // La prima è sempre l'Auto nativa
-    let currentName = null;
-
-    lines.forEach(line => {
-        if (line.startsWith('#EXT-X-STREAM-INF')) {
-            const nameMatch = line.match(/VIDEO="([^"]+)"/);
-            currentName = nameMatch ? nameMatch[1] : 'Unknown';
-        } else if (line.startsWith('http') && currentName) {
-            streams.push({ name: currentName, url: line });
-            currentName = null;
+        const tokenRes = await fetch('https://gql.twitch.tv/gql', {
+            method: 'POST',
+            headers: headers,
+            body: JSON.stringify(gqlBody)
+        });
+        
+        const tokenData = await tokenRes.json();
+        
+        if (tokenData.errors && tokenData.errors.length > 0) {
+            throw new Error("GQL Error: " + tokenData.errors[0].message);
         }
-    });
-    return streams;
+
+        if (!tokenData.data || !tokenData.data.streamPlaybackAccessToken) {
+            throw new Error("No token in GQL response");
+        }
+
+        const { value, signature } = tokenData.data.streamPlaybackAccessToken;
+
+        // 2. Componi e Leggi il file M3U8 Master da Usher
+        const m3u8Url = `https://usher.ttvnw.net/api/channel/hls/${channel}.m3u8?allow_source=true&fast_bread=true&sig=${signature}&token=${encodeURIComponent(value)}&reassignments_supported=true&playlist_include_framerate=true&cdm=wv&p=${Math.random()}`;
+        const m3u8Res = await fetch(m3u8Url);
+        
+        if (!m3u8Res.ok) {
+            throw new Error(`Usher HTTP ${m3u8Res.status}`);
+        }
+        
+        const m3u8Text = await m3u8Res.text();
+
+        // 3. Estrai le varianti (Risoluzioni)
+        const lines = m3u8Text.split('\n');
+        const streams = [{ name: 'Auto', url: m3u8Url }]; // La prima è sempre l'Auto nativa
+        let currentName = null;
+
+        lines.forEach(line => {
+            if (line.startsWith('#EXT-X-STREAM-INF')) {
+                const nameMatch = line.match(/VIDEO="([^"]+)"/);
+                currentName = nameMatch ? nameMatch[1] : 'Unknown';
+            } else if (line.startsWith('http') && currentName) {
+                streams.push({ name: currentName, url: line });
+                currentName = null;
+            }
+        });
+        return streams;
+    } catch (e) {
+        console.error("getStreamM3u8 error:", e);
+        return { error: e.message };
+    }
 }
 
 async function openNativePlayer(channelName, channelId) {
     inPlayer = true;
     currentStreamChannel = channelName;
     currentStreamId = channelId;
+    
+    // Create AVPlayer dynamically as requested
+    let existingPlayer = document.getElementById('av-player');
+    if (!existingPlayer) {
+        existingPlayer = document.createElement('object');
+        existingPlayer.id = 'av-player';
+        existingPlayer.setAttribute('type', 'application/avplayer');
+        existingPlayer.setAttribute('style', 'width:100%; height:100%; position: absolute; z-index: -1;');
+        document.getElementById('player-container').appendChild(existingPlayer);
+    }
+
     document.getElementById('player-container').style.display = 'block';
     document.body.classList.add('player-active');
+    document.documentElement.classList.add('player-active');
 
     qualityOptions = await getStreamM3u8(channelName);
+    
+    if (qualityOptions && qualityOptions.error) {
+        alert("Fetch Error: " + qualityOptions.error);
+        closeNativePlayer(); return;
+    }
+    
     if (!qualityOptions || qualityOptions.length === 0) {
+        alert("Error: Unable to fetch video stream for " + channelName);
         closeNativePlayer(); return;
     }
 
-    playVideoUrl(qualityOptions[0].url); // Fai partire "Auto"
+    try {
+        playVideoUrl(qualityOptions[0].url);
+    } catch (err) {
+        alert("Error starting video: " + err.message);
+        closeNativePlayer();
+    }
     document.getElementById('twitch-chat').src = `https://www.twitch.tv/embed/${channelName}/chat?parent=localhost&darkpopout`;
 
     showPlayerUI();
@@ -2018,9 +2064,28 @@ function playVideoUrl(url) {
 
     try {
         webapis.avplay.open(url);
-        webapis.avplay.setDisplayRect(0, 0, 1920, 1080); // Risoluzione standard TV
+
+        var listener = {
+            onbufferingstart: function() { console.log("Buffering start."); },
+            onbufferingprogress: function(percent) { console.log("Buffering progress data : " + percent); },
+            onbufferingcomplete: function() { console.log("Buffering complete."); },
+            onstreamcompleted: function() {
+                console.log("Stream Completed");
+                webapis.avplay.stop();
+            },
+            oncurrentplaytime: function(currentTime) { },
+            onerror: function(eventType) { console.log("event type error : " + eventType); },
+            ondrmevent: function(drmEvent, drmData) { console.log("DRM callback: " + drmEvent + ", data: " + drmData); },
+            onsubtitlechange: function(duration, text, data3, data4) { }
+        };
+
+        webapis.avplay.setListener(listener);
+        webapis.avplay.setDisplayMethod('PLAYER_DISPLAY_MODE_FULL_SCREEN');
+        webapis.avplay.setBufferingParam('PLAYER_BUFFER_FOR_PLAY', 'PLAYER_BUFFER_SIZE_IN_SECOND', 2000);
+        webapis.avplay.setBufferingParam('PLAYER_BUFFER_FOR_RESUME', 'PLAYER_BUFFER_SIZE_IN_SECOND', 2000);
 
         webapis.avplay.prepareAsync(function () {
+            webapis.avplay.setDisplayRect(0, 0, 1920, 1080);
             webapis.avplay.play();
             isPlaying = true;
             document.getElementById('icon-pause').style.display = 'block';
@@ -2043,6 +2108,7 @@ function closeNativePlayer() {
     } catch (e) { console.error('AVPlay close error', e); }
 
     document.body.classList.remove('player-active');
+    document.documentElement.classList.remove('player-active');
     document.getElementById('player-container').style.display = 'none';
     document.getElementById('twitch-chat').src = '';
     isChatOpen = false; document.getElementById('twitch-chat').style.display = 'none';

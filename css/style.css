@@ -773,12 +773,19 @@ body.theme-light .exit-btn {
 body.theme-light .exit-btn.focused {
     border-color: #9146ff;
 }
-body.player-active,
-body.player-active #app-container,
-body.player-active #content,
-body.player-active #topbar {
+html.player-active,
+#player-container {
+    background-color: transparent !important;
+    z-index: 1000 !important;
+}
+
+body.player-active {
     background: transparent !important;
     background-color: transparent !important;
+}
+
+body.player-active #app-container {
+    display: none !important;
 }
 
 .player-ui-overlay {
