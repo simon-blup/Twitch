@@ -251,7 +251,7 @@ async function loadContent() {
 
         if (viewArea) {
             viewArea.innerHTML = `
-                <div id="search-view" style="padding-bottom: 30px;">
+                <div id="search-view" style="padding-bottom: 60px;">
                     <div id="search-results-area"></div>
                 </div>`;
         }
@@ -847,8 +847,8 @@ function renderSearchResults() {
 
     // We use a flex container with min-height so that if there are multiple rows, 
     // the last one can be pushed to the bottom of the viewport.
-    // Reduced padding-bottom to 40px (half of previous 80px).
-    let html = `<div style="display:flex; flex-direction:column; min-height:calc(100vh - 310px); padding-bottom:40px;">`;
+    // Set to 40px as requested, with 60px outer padding.
+    let html = `<div style="display:flex; flex-direction:column; min-height:calc(100vh - 340px); padding-bottom:40px;">`;
     searchDataRows.forEach((row, rIdx) => {
         const isLast = rIdx === searchDataRows.length - 1;
         const rowStyle = (isLast && searchDataRows.length > 1) ? 'margin-top:auto;' : '';
