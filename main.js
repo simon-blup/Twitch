@@ -17,7 +17,11 @@ let currentStreamChannel = "";
 let currentStreamId = "";
 
 // Default barPos is 'center'
-let appSettings = JSON.parse(localStorage.getItem('twitch_settings')) || { barPos: 'center', theme: 'dark', performanceMode: false };
+let appSettings = JSON.parse(localStorage.getItem('twitch_settings')) || { barPos: 'center', theme: 'dark', performanceMode: false, notifications: true };
+if (appSettings.notifications === undefined) appSettings.notifications = true;
+
+let lastLiveStreamIds = new Set();
+let isFirstCheck = true;
 
 let currentFocusIndex = 1; // 0: Search, 1: Home, 2: Follow, 3: Settings, 4: Profile
 let inMenu = true;
@@ -108,6 +112,11 @@ window.onload = async function () {
     }
 
     document.addEventListener('keydown', handleKeydown);
+
+    // Notification polling every 20 seconds
+    setInterval(checkLiveFollowedStreams, 20000);
+    // Initial check after 5 seconds to populate the list without showing notifications for everyone already live
+    setTimeout(checkLiveFollowedStreams, 5000);
 };
 
 async function checkLoginStatus() {
@@ -271,7 +280,8 @@ async function loadContent() {
         settingsCol = [
             appSettings.barPos === 'center' ? 0 : 1,
             appSettings.theme === 'dark' ? 0 : 1,
-            appSettings.performanceMode ? 0 : 1
+            appSettings.performanceMode ? 0 : 1,
+            appSettings.notifications ? 0 : 1
         ];
         if (mySeq === currentNavSequence) showSettingsScreen();
     } else if (selectedId === 'menu-profile') {
@@ -568,6 +578,76 @@ function updateFollowSelection() {
     }
 }
 
+async function checkLiveFollowedStreams() {
+    if (!userToken || !userId || !appSettings.notifications) return;
+    try {
+        const res = await twitchFetch(`https://api.twitch.tv/helix/streams/followed?user_id=${userId}&first=100`);
+        const currentStreams = res.data || [];
+        const currentIds = new Set(currentStreams.map(s => s.user_id));
+
+        if (isFirstCheck) {
+            lastLiveStreamIds = currentIds;
+            isFirstCheck = false;
+            return;
+        }
+
+        const newLiveStreams = currentStreams.filter(s => !lastLiveStreamIds.has(s.user_id));
+        
+        if (newLiveStreams.length > 0) {
+            // Fetch profile images for new live streamers
+            const userIds = newLiveStreams.map(s => `id=${s.user_id}`).join('&');
+            const userRes = await twitchFetch(`https://api.twitch.tv/helix/users?${userIds}`);
+            const userData = userRes.data || [];
+            
+            newLiveStreams.forEach(stream => {
+                const user = userData.find(u => u.id === stream.user_id);
+                const profileImg = user ? user.profile_image_url : null;
+                showNotification(stream.user_name, stream.title, profileImg);
+            });
+        }
+
+        lastLiveStreamIds = currentIds;
+    } catch (e) {
+        console.error("Error checking live followed streams:", e);
+    }
+}
+
+function showNotification(userName, title, profileImg) {
+    const container = document.getElementById('notification-container');
+    if (!container) return;
+
+    const notif = document.createElement('div');
+    notif.className = 'notification';
+    
+    let iconHtml = `
+        <div class="notification-icon">
+            <svg viewBox="0 0 24 24" width="30" height="30" fill="white">
+                <path d="M2.149 0l-1.612 4.119v16.836h5.731v3.045h3.224l3.045-3.045h4.657l6.269-6.269v-14.686h-21.314zm19.164 13.612l-3.582 3.582h-5.731l-3.045 3.045v-3.045h-4.836v-15.045h17.194v11.463zm-3.582-7.343v4.836h-2.149v-4.836h2.149zm-5.731 0v4.836h-2.149v-4.836h2.149z" />
+            </svg>
+        </div>`;
+    
+    if (profileImg) {
+        iconHtml = `<img src="${profileImg}" class="notification-avatar">`;
+    }
+
+    notif.innerHTML = `
+        ${iconHtml}
+        <div class="notification-content">
+            <div class="notification-title">${userName} is now LIVE!</div>
+            <div class="notification-msg">${title}</div>
+        </div>
+    `;
+
+    container.appendChild(notif);
+    
+    // Auto remove from DOM after animation
+    setTimeout(() => {
+        if (notif.parentNode) {
+            notif.parentNode.removeChild(notif);
+        }
+    }, 6500);
+}
+
 function showSettingsScreen() {
     const viewArea = document.getElementById('main-view-area');
     if (!viewArea) return;
@@ -575,26 +655,33 @@ function showSettingsScreen() {
 
     viewArea.innerHTML = `
         <div class="full-page-screen">
-            <div style="display:flex; flex-direction:column; gap:60px; width:100%;">
+            <div style="display:flex; flex-direction:column; gap:40px; width:100%; padding-top: 40px;">
                 <div>
-                    <h3 style="color:${textColor}; margin-bottom:20px; text-align:center;">Bar Position</h3>
-                    <div style="display:flex; justify-content:center; gap:40px;">
+                    <h3 style="color:${textColor}; margin-bottom:15px; text-align:center; font-size: 20px;">Bar Position</h3>
+                    <div style="display:flex; justify-content:center; gap:30px;">
                         <div class="settings-btn ${(!inMenu && settingsRow === 0 && settingsCol[0] === 0) ? 'focused' : ''} ${appSettings.barPos === 'center' ? 'active-setting' : ''}">Top Center</div>
                         <div class="settings-btn ${(!inMenu && settingsRow === 0 && settingsCol[0] === 1) ? 'focused' : ''} ${appSettings.barPos === 'left' ? 'active-setting' : ''}">Top Left</div>
                     </div>
                 </div>
                 <div>
-                    <h3 style="color:${textColor}; margin-bottom:20px; text-align:center;">Theme</h3>
-                    <div style="display:flex; justify-content:center; gap:40px;">
+                    <h3 style="color:${textColor}; margin-bottom:15px; text-align:center; font-size: 20px;">Theme</h3>
+                    <div style="display:flex; justify-content:center; gap:30px;">
                         <div class="settings-btn ${(!inMenu && settingsRow === 1 && settingsCol[1] === 0) ? 'focused' : ''} ${appSettings.theme === 'dark' ? 'active-setting' : ''}">Dark</div>
                         <div class="settings-btn ${(!inMenu && settingsRow === 1 && settingsCol[1] === 1) ? 'focused' : ''} ${appSettings.theme === 'light' ? 'active-setting' : ''}">Light</div>
                     </div>
                 </div>
                 <div>
-                    <h3 style="color:${textColor}; margin-bottom:20px; text-align:center;">Performance Mode</h3>
-                    <div style="display:flex; justify-content:center; gap:40px;">
+                    <h3 style="color:${textColor}; margin-bottom:15px; text-align:center; font-size: 20px;">Performance Mode</h3>
+                    <div style="display:flex; justify-content:center; gap:30px;">
                         <div class="settings-btn ${(!inMenu && settingsRow === 2 && settingsCol[2] === 0) ? 'focused' : ''} ${appSettings.performanceMode ? 'active-setting' : ''}">On</div>
                         <div class="settings-btn ${(!inMenu && settingsRow === 2 && settingsCol[2] === 1) ? 'focused' : ''} ${!appSettings.performanceMode ? 'active-setting' : ''}">Off</div>
+                    </div>
+                </div>
+                <div>
+                    <h3 style="color:${textColor}; margin-bottom:15px; text-align:center; font-size: 20px;">Notifications</h3>
+                    <div style="display:flex; justify-content:center; gap:30px;">
+                        <div class="settings-btn ${(!inMenu && settingsRow === 3 && settingsCol[3] === 0) ? 'focused' : ''} ${appSettings.notifications ? 'active-setting' : ''}">Enabled</div>
+                        <div class="settings-btn ${(!inMenu && settingsRow === 3 && settingsCol[3] === 1) ? 'focused' : ''} ${!appSettings.notifications ? 'active-setting' : ''}">Disabled</div>
                     </div>
                 </div>
             </div>
@@ -1841,12 +1928,13 @@ function handleKeydown(e) {
         } else if (selectedId === 'menu-settings') {
             if (e.keyCode === 39 && settingsCol[settingsRow] < 1) { settingsCol[settingsRow]++; showSettingsScreen(); }
             else if (e.keyCode === 37 && settingsCol[settingsRow] > 0) { settingsCol[settingsRow]--; showSettingsScreen(); }
-            else if (e.keyCode === 40 && settingsRow < 2) { settingsRow++; showSettingsScreen(); }
+            else if (e.keyCode === 40 && settingsRow < 3) { settingsRow++; showSettingsScreen(); }
             else if (e.keyCode === 38) { if (settingsRow > 0) { settingsRow--; showSettingsScreen(); } else { inMenu = true; updateNav(); showSettingsScreen(); } }
             else if (e.keyCode === 13) {
                 if (settingsRow === 0) appSettings.barPos = settingsCol[0] === 0 ? 'center' : 'left';
                 else if (settingsRow === 1) appSettings.theme = settingsCol[1] === 0 ? 'dark' : 'light';
                 else if (settingsRow === 2) appSettings.performanceMode = settingsCol[2] === 0;
+                else if (settingsRow === 3) appSettings.notifications = settingsCol[3] === 0;
                 saveSettings(); showSettingsScreen(); setTimeout(updateNav, 50);
             }
         } else if (selectedId === 'menu-profile') {

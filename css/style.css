@@ -901,3 +901,93 @@ body.theme-light .follow-btn-large.unfollow {
 body.theme-light .follow-btn-large.focused {
     border-color: #9146ff;
 }
+
+/* --- NOTIFICATIONS --- */
+#notification-container {
+    position: fixed;
+    top: 40px;
+    right: 40px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    pointer-events: none;
+}
+
+.notification {
+    background: rgba(24, 24, 27, 0.95);
+    backdrop-filter: blur(25px);
+    border-radius: 20px;
+    padding: 18px 25px;
+    width: 420px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    /* Tighter, more intense Purple Glow (sfumata più piccola ma più marcata) */
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 15px rgba(145, 70, 255, 0.9);
+    border: 1px solid rgba(145, 70, 255, 0.5);
+    animation: slideIn 0.5s cubic-bezier(0.23, 1, 0.32, 1) forwards,
+               fadeOut 0.5s cubic-bezier(0.23, 1, 0.32, 1) 5.5s forwards;
+    pointer-events: auto;
+}
+
+.notification-avatar {
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    /* Purple circle (cerchio viola) */
+    border: 3px solid #9146ff;
+    object-fit: cover;
+    flex-shrink: 0;
+    box-shadow: 0 0 15px rgba(145, 70, 255, 0.4);
+}
+
+body.theme-light .notification {
+    background: rgba(255, 255, 255, 0.9);
+    color: #0e0e10;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+}
+
+.notification-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: #9146ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.notification-content {
+    flex: 1;
+    overflow: hidden;
+}
+
+.notification-title {
+    font-weight: bold;
+    font-size: 18px;
+    margin-bottom: 4px;
+}
+
+.notification-msg {
+    font-size: 14px;
+    color: #adadb8;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+body.theme-light .notification-msg {
+    color: #555;
+}
+
+@keyframes slideIn {
+    from { transform: translateX(120%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fadeOut {
+    from { transform: translateX(0); opacity: 1; }
+    to { transform: translateX(120%); opacity: 0; }
+}
