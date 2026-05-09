@@ -30,8 +30,10 @@ let originalHeroCount = 0; // Per gestire il loop infinito della prima riga
 let settingsRow = 0;
 let settingsCol = [0, 0];
 
-// Navigation Race Condition Fix
+// Navigation Race Condition & Animation Lock
 let currentNavSequence = 0;
+let isAnimating = false;
+let animLockTimeout = null;
 
 // Per gestire Follow
 let followDataRows = [];
@@ -1279,6 +1281,21 @@ function updateCategorySelection() {
 }
 
 function handleKeydown(e) {
+    const isVertical = e.keyCode === 38 || e.keyCode === 40;
+    const isHomeOrFollow = currentFocusIndex === 1 || currentFocusIndex === 2;
+    const isBaseView = !inPlayer && !inExitMenu && !inChannelView && !inCategoryView && !isSearchInputFocused;
+
+    if (!appSettings.performanceMode && isVertical && isHomeOrFollow && isBaseView) {
+        if (isAnimating) {
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
+        isAnimating = true;
+        clearTimeout(animLockTimeout);
+        animLockTimeout = setTimeout(() => { isAnimating = false; }, 350);
+    }
+
     if (inExitMenu) {
         if (e.keyCode === 39 && exitMenuFocusIdx < 1) {
             exitMenuFocusIdx++;
