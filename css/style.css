@@ -215,6 +215,7 @@ body.theme-light .search-input-pill:focus {
     transform: scale(0.95);
     opacity: 0.6;
     border: 2px solid transparent;
+    box-sizing: border-box;
 }
 
 body.theme-light .search-channel-card {

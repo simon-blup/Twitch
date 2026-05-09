@@ -1399,6 +1399,20 @@ function handleKeydown(e) {
         if (e.keyCode === 37 && currentFocusIndex > 0) { currentFocusIndex--; updateNav(); loadContent(); }
         if (e.keyCode === 40 && selectedId !== 'menu-search') { inMenu = false; updateNav(); if (selectedId === 'menu-home') updateHomeSelection(); if (selectedId === 'menu-follow') updateFollowSelection(); if (selectedId === 'menu-settings') showSettingsScreen(); if (selectedId === 'menu-profile') showProfileScreen(); }
     } else if (isSearchInputFocused) {
+        if (e.keyCode === 13) {
+            // "Done" on virtual keyboard
+            e.preventDefault();
+            document.getElementById('search-input').blur();
+            document.body.focus(); // Prevent native spatial navigation black-holes
+            if (searchDataRows.length > 0) {
+                isSearchInputFocused = false;
+                searchActiveRow = 0;
+                searchActiveCol = 0;
+                updateNav();
+                updateSearchSelection();
+            }
+            return;
+        }
         if (e.keyCode === 38) {
             // Up arrow: back to menu
             e.preventDefault();
