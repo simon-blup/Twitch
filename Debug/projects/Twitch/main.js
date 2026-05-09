@@ -35,10 +35,13 @@ let currentNavSequence = 0;
 let isAnimating = false;
 let animLockTimeout = null;
 
-// Per gestire Follow
+// Per gestire i Follow
 let followDataRows = [];
 let followActiveRow = 0;
 let followActiveCol = 0;
+
+// Search sequence to prevent race conditions
+let searchSequence = 0;
 
 // Per gestire Category View
 let inCategoryView = false;
@@ -244,7 +247,7 @@ async function loadContent() {
         isSearchInputFocused = false;
         if (viewArea) {
             viewArea.innerHTML = `
-                <div id="search-view" style="padding-bottom: 60px;">
+                <div id="search-view" style="padding-bottom: 30px;">
                     <div id="search-results-area"></div>
                 </div>`;
         }
@@ -742,22 +745,28 @@ async function executeSearch(query) {
     if (!resultsArea) return;
 
     try {
+        searchSequence++;
+        const mySearchSeq = searchSequence;
+
         const [chRes, catRes] = await Promise.all([
             twitchFetch(`https://api.twitch.tv/helix/search/channels?query=${encodeURIComponent(query)}&first=20`),
             twitchFetch(`https://api.twitch.tv/helix/search/categories?query=${encodeURIComponent(query)}&first=10`)
         ]);
 
+        if (mySearchSeq !== searchSequence) return;
+
         const channels = chRes.data || [];
         const categories = catRes.data || [];
 
         const liveChannels = channels.filter(c => c.is_live);
-        const allChannels = channels; // Metti pure quelli in live
+        const allChannels = channels;
 
         let liveStreams = [];
         if (liveChannels.length > 0) {
             const userIds = liveChannels.map(c => `user_id=${c.id}`).join('&');
             try {
                 const streamRes = await twitchFetch(`https://api.twitch.tv/helix/streams?${userIds}`);
+                if (mySearchSeq !== searchSequence) return;
                 liveStreams = streamRes.data || [];
             } catch (e) { console.error("Error fetching live streams", e); }
         }
@@ -776,6 +785,7 @@ async function executeSearch(query) {
                 return cat;
             });
             await Promise.all(catPromises);
+            if (mySearchSeq !== searchSequence) return;
             popularCategories = categories.filter(c => c.viewer_count >= 100);
         }
 
@@ -790,6 +800,7 @@ async function executeSearch(query) {
                 return c;
             });
             await Promise.all(followerPromises);
+            if (mySearchSeq !== searchSequence) return;
             allChannels.sort((a, b) => b.follower_count - a.follower_count);
         }
 
@@ -811,8 +822,12 @@ async function executeSearch(query) {
             return;
         }
 
-        searchActiveRow = -1;
-        searchActiveCol = 0;
+        // Only reset selection if we are still focusing the search bar.
+        // If the user already moved down, don't break their navigation.
+        if (isSearchInputFocused || inMenu) {
+            searchActiveRow = -1;
+            searchActiveCol = 0;
+        }
         renderSearchResults();
     } catch (e) {
         console.error(e);
@@ -826,8 +841,15 @@ function renderSearchResults() {
     const isLight = document.body.classList.contains('theme-light');
     const titleColor = isLight ? '#000' : 'white';
 
-    let html = `<div style="padding: 0 0 80px 0;">`;
+    // We use a flex container with min-height so that if there are multiple rows, 
+    // the last one can be pushed to the bottom of the viewport.
+    // Reduced padding-bottom to 40px (half of previous 80px).
+    let html = `<div style="display:flex; flex-direction:column; min-height:calc(100vh - 310px); padding-bottom:40px;">`;
     searchDataRows.forEach((row, rIdx) => {
+        const isLast = rIdx === searchDataRows.length - 1;
+        const rowStyle = (isLast && searchDataRows.length > 1) ? 'margin-top:auto;' : '';
+        
+        html += `<div style="${rowStyle}">`;
         html += `<h3 style="color:${titleColor}; margin: 30px 0 20px 80px; font-size:26px;">${row.title}</h3>`;
         html += `<div style="overflow:hidden; width:100%; position:relative;">`;
         html += `<div id="search-row-${rIdx}" style="display:flex; gap:30px; transition: transform 0.3s ease; padding: 10px 80px;">`;
@@ -869,7 +891,7 @@ function renderSearchResults() {
                     </div>`;
             }
         });
-        html += `</div></div>`;
+        html += `</div></div></div>`;
     });
     html += `</div>`;
     resultsArea.innerHTML = html;
@@ -1443,10 +1465,18 @@ function handleKeydown(e) {
             return;
         }
         if (e.keyCode === 27 || e.keyCode === 461 || e.keyCode === 10009) {
-            // Tizen Return or Escape to close keyboard but stay on the search bar
+            // Tizen Return or Escape
             e.preventDefault();
-            document.getElementById('search-input').blur();
-            document.body.focus();
+            const input = document.getElementById('search-input');
+            if (document.activeElement === input) {
+                input.blur();
+                document.body.focus();
+            } else {
+                // Already blurred: return to menu
+                isSearchInputFocused = false;
+                inMenu = true;
+                updateNav();
+            }
             return;
         }
         if (e.keyCode === 38) {
@@ -1643,7 +1673,23 @@ function handleKeydown(e) {
             return;
         }
         if (selectedId === 'menu-search') {
-            if (searchDataRows.length === 0 || searchActiveRow < 0) return;
+            // BACK BUTTON from results: go back to search bar
+            if (e.keyCode === 8 || e.keyCode === 27 || e.keyCode === 461 || e.keyCode === 10009) {
+                isSearchInputFocused = true;
+                searchActiveRow = -1;
+                updateNav();
+                updateSearchSelection();
+                return;
+            }
+
+            if (searchDataRows.length === 0 || searchActiveRow < 0) {
+                // If we are here and press Up, go back to search bar anyway
+                if (e.keyCode === 38) {
+                    isSearchInputFocused = true;
+                    updateNav();
+                }
+                return;
+            }
             const currentRow = searchDataRows[searchActiveRow];
             if (e.keyCode === 39) {
                 if (searchActiveCol < currentRow.data.length - 1) { searchActiveCol++; updateSearchSelection(); }
