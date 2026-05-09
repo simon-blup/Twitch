@@ -128,7 +128,7 @@ async function checkLoginStatus() {
 
 async function refreshTwitchToken() {
     if (!refreshToken) {
-        logout();
+        await logout();
         return;
     }
     try {
@@ -145,15 +145,15 @@ async function refreshTwitchToken() {
             localStorage.setItem('twitch_refresh_token', refreshToken);
             console.log("Token aggiornato con successo!");
         } else {
-            logout();
+            await logout();
         }
     } catch (error) {
         console.error("Errore durante il refresh:", error);
-        logout();
+        await logout();
     }
 }
 
-function logout() {
+async function logout() {
     localStorage.removeItem('twitch_access_token');
     localStorage.removeItem('twitch_refresh_token');
     localStorage.removeItem('twitch_user_id');
@@ -163,7 +163,7 @@ function logout() {
     currentFocusIndex = 4;
     inMenu = false;
     updateNav();
-    loadContent();
+    await loadContent();
 }
 
 function applySettings() {
@@ -268,7 +268,7 @@ async function loadContent() {
         ];
         if (mySeq === currentNavSequence) showSettingsScreen();
     } else if (selectedId === 'menu-profile') {
-        if (mySeq === currentNavSequence) showProfileScreen();
+        if (mySeq === currentNavSequence) await showProfileScreen();
     }
 }
 
@@ -298,18 +298,8 @@ async function getTwitchHome(seqId) {
         // 3. Top Categories
         const catRes = await twitchFetch('https://api.twitch.tv/helix/games/top?first=10');
         if (catRes.data && catRes.data.length > 0) {
-            const catPromises = catRes.data.map(async (cat) => {
-                try {
-                    const stRes = await twitchFetch(`https://api.twitch.tv/helix/streams?game_id=${cat.id}&first=100`);
-                    let viewers = 0;
-                    if (stRes && stRes.data) {
-                        viewers = stRes.data.reduce((sum, stream) => sum + stream.viewer_count, 0);
-                    }
-                    cat.viewer_count = viewers;
-                } catch (e) { cat.viewer_count = 0; }
-                return cat;
-            });
-            await Promise.all(catPromises);
+            // We skip the viewer count fetch here to make home load much faster.
+            // Viewer counts for categories are secondary on the home page.
             homeDataRows.push({ title: "Categories", type: "category", data: catRes.data });
         }
 
@@ -446,7 +436,7 @@ function updateHomeSelection() {
     }
 }
 
-async function getFollowData() {
+async function getFollowData(seqId) {
     followDataRows = [];
     if (!userToken) {
         return;
@@ -477,6 +467,7 @@ async function getFollowData() {
             followDataRows.push({ type: "avatars", data: liveUsers });
         }
 
+        if (seqId !== undefined && seqId !== currentNavSequence) return;
         renderFollowScreen();
     } catch (e) {
         console.error(e);
@@ -604,7 +595,9 @@ async function showProfileScreen() {
                     <div class="logout-btn ${!inMenu ? 'focused' : ''}" style="margin-top: 0;">LOG OUT</div>
                 </div>`;
         } catch (e) { console.error(e); }
-    } else { startDeviceFlow(); }
+    } else { 
+        await startDeviceFlow(); 
+    }
 }
 
 async function startDeviceFlow() {
@@ -625,7 +618,11 @@ async function startDeviceFlow() {
                 </div>
             </div>`;
         pollForToken(data.device_code, data.interval);
-    } catch (e) { console.error(e); }
+        return true;
+    } catch (e) { 
+        console.error(e); 
+        return false;
+    }
 }
 
 function pollForToken(deviceCode, interval) {
@@ -643,18 +640,24 @@ function pollForToken(deviceCode, interval) {
             localStorage.setItem('twitch_access_token', userToken);
             localStorage.setItem('twitch_refresh_token', refreshToken);
             
+            // Re-show splash during this critical loading phase
             const splash = document.getElementById('splash-screen');
-            if (splash) splash.classList.remove('hidden');
+            if (splash) {
+                splash.classList.remove('hidden');
+                // Optional: Update splash to indicate we are loading content
+            }
 
             await fetchUserId();
             
-            // Pre-fetch Follow data in the background so it is ready
+            // Pre-fetch Follow data
             await getFollowData();
 
             currentFocusIndex = 1; 
             inMenu = true; 
             updateNav(); 
-            await loadContent(); // Wait for Home data to be ready
+            
+            // Wait for Home content to be fully ready
+            await loadContent(); 
             
             if (splash) splash.classList.add('hidden');
         }
