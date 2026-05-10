@@ -809,17 +809,10 @@ body.player-active #app-container {
     box-shadow: 0 0 25px rgba(145, 70, 255, 0.8); background: rgba(145, 70, 255, 0.9);
 }
 
-.center-btn {
-    position: absolute; top: 50%; left: 50%;
-    transform: translate(-50%, -50%); width: 110px; height: 110px;
-}
-.center-btn svg { width: 50px; height: 50px; }
-.center-btn.focused { transform: translate(-50%, -50%) scale(1.2); }
-
-.player-controls-right { position: absolute; right: 60px; bottom: 60px; display: flex; gap: 20px; }
+.player-controls-left { position: absolute; left: 60px; bottom: 60px; display: flex; gap: 20px; }
 
 .quality-menu {
-    position: absolute; right: 60px; bottom: 140px; background: rgba(31, 31, 35, 0.95);
+    position: absolute; left: 60px; bottom: 140px; background: rgba(31, 31, 35, 0.95);
     border-radius: 15px; padding: 10px 0; backdrop-filter: blur(10px); flex-direction: column;
 }
 .quality-item { padding: 15px 40px; color: white; font-size: 20px; font-weight: bold; text-align: center; }

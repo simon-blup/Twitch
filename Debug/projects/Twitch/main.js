@@ -6,10 +6,9 @@ let userId = localStorage.getItem('twitch_user_id') || '';
 // --- VARIABILI PLAYER NATIVO ---
 let inPlayer = false;
 let uiTimeout = null;
-let playerFocusIndex = 0; // 0: Play, 1: Quality, 2: Chat
-const playerBtns = ['btn-play', 'btn-quality', 'btn-chat'];
+let playerFocusIndex = 0; // 0: Play, 1: Quality
+const playerBtns = ['btn-play', 'btn-quality'];
 let isPlaying = true;
-let isChatOpen = false;
 let isQualityMenuOpen = false;
 let qualityOptions = [];
 let qualityFocusIndex = 0;
@@ -1491,20 +1490,20 @@ function handleKeydown(e) {
                         document.getElementById('icon-play').style.display = 'none';
                     }
                 } catch (e) { console.error('AVPlay play/pause error', e); }
-            } else if (playerFocusIndex === 1) { // Follow (API nuova V2)
-                if (userToken && currentStreamId) {
-                    twitchFetch(`https://api.twitch.tv/helix/channels/followers`, {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ broadcaster_id: currentStreamId, user_id: userId })
-                    });
-                }
-            } else if (playerFocusIndex === 2) { // Menu Qualità
+            } else if (playerFocusIndex === 1) { // Menu Qualità
                 const menu = document.getElementById('quality-menu');
                 menu.innerHTML = qualityOptions.map((q, i) => `<div class="quality-item ${i === 0 ? 'focused' : ''}">${q.name}</div>`).join('');
                 menu.style.display = 'flex'; isQualityMenuOpen = true; qualityFocusIndex = 0;
-            } else if (playerFocusIndex === 3) { // Toggle Chat
+            } else if (playerFocusIndex === 2) { // Toggle Chat
                 isChatOpen = !isChatOpen;
-                document.getElementById('twitch-chat').style.display = isChatOpen ? 'block' : 'none';
+                const chatFrame = document.getElementById('twitch-chat');
+                if (isChatOpen) {
+                    chatFrame.src = `https://www.twitch.tv/embed/${currentStreamChannel}/chat?parent=localhost&darkpopout`;
+                    chatFrame.style.display = 'block';
+                } else {
+                    chatFrame.src = '';
+                    chatFrame.style.display = 'none';
+                }
             }
         }
         updatePlayerFocus();
@@ -1982,8 +1981,8 @@ async function getStreamM3u8(channel) {
 
         const { value, signature } = tokenData.data.streamPlaybackAccessToken;
 
-        // 2. Componi e Leggi il file M3U8 Master da Usher
-        const m3u8Url = `https://usher.ttvnw.net/api/channel/hls/${channel}.m3u8?allow_source=true&fast_bread=true&sig=${signature}&token=${encodeURIComponent(value)}&reassignments_supported=true&playlist_include_framerate=true&cdm=wv&p=${Math.random()}`;
+        // 2. Componi e Leggi il file M3U8 Master da Usher (rimosso fast_bread=true per evitare problemi di stuttering su Tizen)
+        const m3u8Url = `https://usher.ttvnw.net/api/channel/hls/${channel}.m3u8?allow_source=true&sig=${signature}&token=${encodeURIComponent(value)}&reassignments_supported=true&playlist_include_framerate=true&p=${Math.random()}`;
         const m3u8Res = await fetch(m3u8Url);
         
         if (!m3u8Res.ok) {
@@ -1996,12 +1995,26 @@ async function getStreamM3u8(channel) {
         const lines = m3u8Text.split('\n');
         const streams = [{ name: 'Auto', url: m3u8Url }]; // La prima è sempre l'Auto nativa
         let currentName = null;
+        let mediaMap = {};
+
+        // Extract human-readable names from MEDIA tags
+        lines.forEach(line => {
+            if (line.startsWith('#EXT-X-MEDIA:TYPE=VIDEO')) {
+                const groupIdMatch = line.match(/GROUP-ID="([^"]+)"/);
+                const nameMatch = line.match(/NAME="([^"]+)"/);
+                if (groupIdMatch && nameMatch) {
+                    mediaMap[groupIdMatch[1]] = nameMatch[1];
+                }
+            }
+        });
 
         lines.forEach(line => {
             if (line.startsWith('#EXT-X-STREAM-INF')) {
-                const nameMatch = line.match(/VIDEO="([^"]+)"/);
-                currentName = nameMatch ? nameMatch[1] : 'Unknown';
+                const videoMatch = line.match(/VIDEO="([^"]+)"/);
+                const groupId = videoMatch ? videoMatch[1] : null;
+                currentName = groupId && mediaMap[groupId] ? mediaMap[groupId] : (groupId || 'Unknown');
             } else if (line.startsWith('http') && currentName) {
+                // Ensure URL is absolute or protocol-relative if needed, though Twitch usually provides full URLs
                 streams.push({ name: currentName, url: line });
                 currentName = null;
             }
@@ -2045,12 +2058,15 @@ async function openNativePlayer(channelName, channelId) {
     }
 
     try {
-        playVideoUrl(qualityOptions[0].url);
+        // Avvia con la risoluzione nativa fissa più alta (index 1) se disponibile, altrimenti Auto.
+        // Questo evita gli sbalzi di bitrate dell'HLS su Tizen che causano stuttering e loop audio.
+        const defaultQualityUrl = qualityOptions.length > 1 ? qualityOptions[1].url : qualityOptions[0].url;
+        playVideoUrl(defaultQualityUrl);
     } catch (err) {
         alert("Error starting video: " + err.message);
         closeNativePlayer();
     }
-    document.getElementById('twitch-chat').src = `https://www.twitch.tv/embed/${channelName}/chat?parent=localhost&darkpopout`;
+    // Rimossa l'assegnazione automatica del src della chat qui per salvare RAM.
 
     showPlayerUI();
     updatePlayerFocus();
@@ -2081,8 +2097,6 @@ function playVideoUrl(url) {
 
         webapis.avplay.setListener(listener);
         webapis.avplay.setDisplayMethod('PLAYER_DISPLAY_MODE_FULL_SCREEN');
-        webapis.avplay.setBufferingParam('PLAYER_BUFFER_FOR_PLAY', 'PLAYER_BUFFER_SIZE_IN_SECOND', 2000);
-        webapis.avplay.setBufferingParam('PLAYER_BUFFER_FOR_RESUME', 'PLAYER_BUFFER_SIZE_IN_SECOND', 2000);
 
         webapis.avplay.prepareAsync(function () {
             webapis.avplay.setDisplayRect(0, 0, 1920, 1080);
@@ -2110,8 +2124,6 @@ function closeNativePlayer() {
     document.body.classList.remove('player-active');
     document.documentElement.classList.remove('player-active');
     document.getElementById('player-container').style.display = 'none';
-    document.getElementById('twitch-chat').src = '';
-    isChatOpen = false; document.getElementById('twitch-chat').style.display = 'none';
     isQualityMenuOpen = false; document.getElementById('quality-menu').style.display = 'none';
     clearTimeout(uiTimeout);
 }
