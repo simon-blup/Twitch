@@ -40,8 +40,9 @@ let currentStreamId = "";
 let currentStreamTitle = "";
 
 // Default barPos is 'center'
-let appSettings = JSON.parse(localStorage.getItem('twitch_settings')) || { barPos: 'center', theme: 'dark', performanceMode: false, notifications: true };
+let appSettings = JSON.parse(localStorage.getItem('twitch_settings')) || { barPos: 'center', theme: 'dark', performanceMode: false, notifications: true, adBlock: true };
 if (appSettings.notifications === undefined) appSettings.notifications = true;
+if (appSettings.adBlock === undefined) appSettings.adBlock = true;
 
 let lastLiveStreamIds = new Set();
 let isFirstCheck = true;
@@ -55,7 +56,7 @@ let originalHeroCount = 0; // Per gestire il loop infinito della prima riga
 
 // Per gestire i Settings
 let settingsRow = 0;
-let settingsCol = [0, 0];
+let settingsCol = [0, 0, 0, 0, 0];
 
 // Navigation Race Condition & Animation Lock
 let currentNavSequence = 0;
@@ -326,7 +327,8 @@ async function loadContent() {
             appSettings.barPos === 'center' ? 0 : 1,
             appSettings.theme === 'dark' ? 0 : 1,
             appSettings.performanceMode ? 0 : 1,
-            appSettings.notifications ? 0 : 1
+            appSettings.notifications ? 0 : 1,
+            appSettings.adBlock ? 0 : 1
         ];
         if (mySeq === currentNavSequence) showSettingsScreen();
     } else if (selectedId === 'menu-profile') {
@@ -721,6 +723,13 @@ function showSettingsScreen() {
                     <div style="display:flex; justify-content:center; gap:30px;">
                         <div class="settings-btn ${(!inMenu && settingsRow === 3 && settingsCol[3] === 0) ? 'focused' : ''} ${appSettings.notifications ? 'active-setting' : ''}">Enabled</div>
                         <div class="settings-btn ${(!inMenu && settingsRow === 3 && settingsCol[3] === 1) ? 'focused' : ''} ${!appSettings.notifications ? 'active-setting' : ''}">Disabled</div>
+                    </div>
+                </div>
+                <div>
+                    <h3 style="color:${textColor}; margin-bottom:15px; text-align:center; font-size: 20px;">Ad Block (Proxy)</h3>
+                    <div style="display:flex; justify-content:center; gap:30px;">
+                        <div class="settings-btn ${(!inMenu && settingsRow === 4 && settingsCol[4] === 0) ? 'focused' : ''} ${appSettings.adBlock ? 'active-setting' : ''}">Enabled</div>
+                        <div class="settings-btn ${(!inMenu && settingsRow === 4 && settingsCol[4] === 1) ? 'focused' : ''} ${!appSettings.adBlock ? 'active-setting' : ''}">Disabled</div>
                     </div>
                 </div>
             </div>
@@ -2094,13 +2103,14 @@ function handleKeydown(e) {
         } else if (selectedId === 'menu-settings') {
             if (e.keyCode === 39 && settingsCol[settingsRow] < 1) { settingsCol[settingsRow]++; showSettingsScreen(); }
             else if (e.keyCode === 37 && settingsCol[settingsRow] > 0) { settingsCol[settingsRow]--; showSettingsScreen(); }
-            else if (e.keyCode === 40 && settingsRow < 3) { settingsRow++; showSettingsScreen(); }
+            else if (e.keyCode === 40 && settingsRow < 4) { settingsRow++; showSettingsScreen(); }
             else if (e.keyCode === 38) { if (settingsRow > 0) { settingsRow--; showSettingsScreen(); } else { inMenu = true; updateNav(); showSettingsScreen(); } }
             else if (e.keyCode === 13) {
                 if (settingsRow === 0) appSettings.barPos = settingsCol[0] === 0 ? 'center' : 'left';
                 else if (settingsRow === 1) appSettings.theme = settingsCol[1] === 0 ? 'dark' : 'light';
                 else if (settingsRow === 2) appSettings.performanceMode = settingsCol[2] === 0;
                 else if (settingsRow === 3) appSettings.notifications = settingsCol[3] === 0;
+                else if (settingsRow === 4) appSettings.adBlock = settingsCol[4] === 0;
                 saveSettings(); showSettingsScreen(); setTimeout(updateNav, 50);
             }
         } else if (selectedId === 'menu-profile') {
@@ -2169,9 +2179,30 @@ async function getStreamM3u8(channel) {
 
         const { value, signature } = tokenData.data.streamPlaybackAccessToken;
 
-        // 2. Componi e Leggi il file M3U8 Master da Usher (rimosso fast_bread=true per evitare problemi di stuttering su Tizen)
-        const m3u8Url = `https://usher.ttvnw.net/api/channel/hls/${channel}.m3u8?allow_source=true&sig=${signature}&token=${encodeURIComponent(value)}&reassignments_supported=true&playlist_include_framerate=true&p=${Math.random()}`;
-        const m3u8Res = await fetch(m3u8Url);
+        // 2. Componi e Leggi il file M3U8 Master da Usher
+        const originalUsherUrl = `https://usher.ttvnw.net/api/channel/hls/${channel}.m3u8?allow_source=true&sig=${signature}&token=${encodeURIComponent(value)}&reassignments_supported=true&playlist_include_framerate=true&p=${Math.random()}`;
+        let m3u8Url = originalUsherUrl;
+        
+        // --- AD BLOCK LOGIC CON FALLBACK ---
+        let m3u8Res;
+        if (appSettings.adBlock) {
+            try {
+                // Utilizziamo un proxy più stabile (PerfProd Load Balancer)
+                // Se questo fallisce (es. errore 525 o timeout), il catch ci riporta all'URL originale di Twitch.
+                const proxyUrl = `https://lb-eu.cdn-perfprod.com/live/${channel}?allow_source=true&sig=${signature}&token=${encodeURIComponent(value)}&reassignments_supported=true&playlist_include_framerate=true`;
+                
+                m3u8Res = await fetch(proxyUrl);
+                if (!m3u8Res.ok) {
+                    console.warn(`Ad-Block Proxy returned ${m3u8Res.status}, falling back...`);
+                    m3u8Res = await fetch(originalUsherUrl);
+                }
+            } catch (proxyErr) {
+                console.warn("Ad-Block Proxy fetch failed, falling back to Usher:", proxyErr);
+                m3u8Res = await fetch(originalUsherUrl);
+            }
+        } else {
+            m3u8Res = await fetch(originalUsherUrl);
+        }
         
         if (!m3u8Res.ok) {
             throw new Error(`Usher HTTP ${m3u8Res.status}`);
