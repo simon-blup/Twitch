@@ -1,7 +1,30 @@
 const CLIENT_ID = '9g8h4ha9stbc9r76624evvlx4bzk39';
-let userToken = localStorage.getItem('twitch_access_token') || '';
-let refreshToken = localStorage.getItem('twitch_refresh_token') || '';
-let userId = localStorage.getItem('twitch_user_id') || '';
+
+// Gestione Multi-Profilo
+let allProfiles = JSON.parse(localStorage.getItem('twitch_profiles')) || [];
+let activeProfileId = localStorage.getItem('active_profile_id') || '';
+
+let userToken = '';
+let refreshToken = '';
+let userId = '';
+
+// Carica il profilo attivo all'avvio
+function loadActiveProfile() {
+    const profile = allProfiles.find(p => p.id === activeProfileId) || allProfiles[0];
+    if (profile) {
+        userToken = profile.token;
+        refreshToken = profile.refresh;
+        userId = profile.id;
+        activeProfileId = profile.id;
+        localStorage.setItem('active_profile_id', activeProfileId);
+    } else {
+        userToken = '';
+        refreshToken = '';
+        userId = '';
+        activeProfileId = '';
+    }
+}
+loadActiveProfile();
 
 // --- VARIABILI PLAYER NATIVO ---
 let inPlayer = false;
@@ -74,19 +97,24 @@ let exitMenuFocusIdx = 0; // 0: Annulla, 1: Esci
 
 window.onload = async function () {
     applySettings();
+    
+    // Assicuriamoci che i profili siano caricati prima di procedere
+    loadActiveProfile();
+
     if (userToken) {
         await checkLoginStatus();
         if (!userId && userToken) await fetchUserId();
     }
 
+    // Se non c'è un utente loggato, forza la visualizzazione della sezione Profilo (che mostrerà il codice)
     if (!userToken) {
-        currentFocusIndex = 4;
+        currentFocusIndex = 4; // Indice del menu Profilo
         inMenu = false;
     }
 
     updateNav();
 
-    // Wait for the first home/follow load to complete
+    // Carica il contenuto solo se abbiamo un token, altrimenti showProfileScreen verrà chiamato da updateNav/loadContent
     await loadContent();
 
     // Hide splash screen smoothly
@@ -699,35 +727,61 @@ function showSettingsScreen() {
         </div>`;
 }
 
+let profileActiveCol = 0;
+let profileRow = 0; // 0: Profiles row, 1: Logout row
+
 async function showProfileScreen() {
     const viewArea = document.getElementById('main-view-area');
     if (!viewArea) return;
     const textColor = document.body.classList.contains('theme-light') ? '#000' : 'white';
 
-    if (userToken) {
-        try {
-            const res = await twitchFetch('https://api.twitch.tv/helix/users');
-            const user = res.data && res.data[0];
-            const userName = user ? user.display_name : "Unknown User";
-
-            // Debug info
-            const tokenStatus = refreshToken ? "Refresh Token: Present" : "Refresh Token: Missing!";
-            const idStatus = userId ? "User ID: " + userId : "User ID: Missing!";
-
-            viewArea.innerHTML = `
-                <div class="full-page-screen">
-                    <h1 style="color:${textColor}; font-size:48px; margin-bottom: 20px;">Hello, ${userName}!</h1>
-                    <div style="color:#adadb8; font-size:16px; margin-bottom:40px;">${tokenStatus} | ${idStatus}</div>
-                    <div class="logout-btn ${!inMenu ? 'focused' : ''}" style="margin-top: 0;">LOG OUT</div>
-                </div>`;
-        } catch (e) { console.error(e); }
-    } else {
+    if (allProfiles.length === 0) {
         await startDeviceFlow();
+        return;
     }
+
+    let html = `
+        <div class="full-page-screen" style="display:flex; flex-direction:column; align-items:center; justify-content:center;">
+            <h1 style="color:${textColor}; font-size:52px; margin-bottom: 60px; font-weight:bold;">Accounts</h1>
+            <div class="profiles-grid" style="display:flex; justify-content:center; align-items:center; gap:60px; flex-wrap:wrap; margin-bottom: 60px;">`;
+
+    allProfiles.forEach((p, index) => {
+        const isSelected = !inMenu && profileRow === 0 && profileActiveCol === index;
+        const isActive = p.id === activeProfileId;
+        html += `
+            <div class="profile-item ${isSelected ? 'focused' : ''}" id="profile-card-${index}" style="text-align:center; width:200px; transition: transform 0.3s ease;">
+                <div class="profile-avatar-wrapper" style="position:relative; width:170px; height:170px; margin: 0 auto 20px;">
+                    <img src="${p.img}" style="width:100%; height:100%; border-radius:50%; border: 6px solid ${isSelected ? '#bf94ff' : (isActive ? 'rgba(191,148,255,0.4)' : 'transparent')}; box-shadow: ${isSelected ? '0 0 30px #bf94ff' : 'none'}; transition: all 0.3s ease;">
+                    ${isActive ? '<div style="position:absolute; bottom:10px; right:10px; background:#bf94ff; color:white; border-radius:50%; width:35px; height:35px; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:bold; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">✓</div>' : ''}
+                </div>
+                <div style="color:${textColor}; font-size:24px; font-weight:bold; opacity: ${isSelected ? '1' : '0.8'};">${p.name}</div>
+            </div>`;
+    });
+
+    const isAddSelected = !inMenu && profileRow === 0 && profileActiveCol === allProfiles.length;
+    html += `
+        <div class="profile-item add-profile ${isAddSelected ? 'focused' : ''}" id="profile-card-add" style="text-align:center; width:200px; transition: transform 0.3s ease;">
+            <div style="width:170px; height:170px; border-radius:50%; background: ${isAddSelected ? 'rgba(191, 148, 255, 0.2)' : 'rgba(191, 148, 255, 0.05)'}; border: 5px dashed #bf94ff; margin: 0 auto 20px; display:flex; align-items:center; justify-content:center; font-size:70px; color:#bf94ff; box-shadow: ${isAddSelected ? '0 0 30px #bf94ff' : 'none'}; transition: all 0.3s ease;">+</div>
+            <div style="color:${textColor}; font-size:24px; font-weight:bold; opacity: ${isAddSelected ? '1' : '0.8'};">Add Account</div>
+        </div>
+    </div>`;
+
+    const isLogoutSelected = !inMenu && profileRow === 1;
+    html += `
+        <div class="logout-btn ${isLogoutSelected ? 'focused' : ''}" style="margin-top: 40px; padding: 15px 40px; border: 3px solid #ff4f4f; color: #ff4f4f; background: ${isLogoutSelected ? 'rgba(255,79,79,0.1)' : 'transparent'}; font-weight:bold; border-radius:50px; font-size:22px; transition: all 0.3s ease;">REMOVE ACCOUNT</div>
+    </div>`;
+
+    viewArea.innerHTML = html;
 }
 
+let pollIntervalTimer = null;
+let inDeviceFlow = false;
+
 async function startDeviceFlow() {
+    inDeviceFlow = true;
     const viewArea = document.getElementById('main-view-area');
+    if (!viewArea) return false;
+    
     try {
         const resp = await fetch('https://id.twitch.tv/oauth2/device', {
             method: 'POST',
@@ -736,23 +790,69 @@ async function startDeviceFlow() {
         });
         const data = await resp.json();
         const textColor = document.body.classList.contains('theme-light') ? '#000' : 'white';
+        
         viewArea.innerHTML = `
-            <div class="activation-container">
-                <div class="activation-box">
-                    <h1 style="color:#bf94ff; font-size:38px; margin-bottom: 15px;">twitch.tv/activate</h1>
-                    <div style="color:${textColor}; font-size:60px; font-weight:bold; margin:15px 0; letter-spacing:10px;">${data.user_code}</div>
+            <div class="full-page-screen" style="display:flex; align-items:center; justify-content:center;">
+                <div class="activation-box" style="text-align:center;">
+                    <h1 style="color:#bf94ff; font-size:42px; margin-bottom: 10px; font-weight:bold;">twitch.tv/activate</h1>
+                    <div style="color:${textColor}; font-size:85px; font-weight:bold; margin:20px 0; letter-spacing:15px;">${data.user_code}</div>
+                    ${allProfiles.length > 0 ? `<div style="color:#adadb8; font-size:20px; margin-top:20px; font-weight:normal;">Press BACK to cancel</div>` : ''}
                 </div>
             </div>`;
+            
         pollForToken(data.device_code, data.interval);
         return true;
     } catch (e) {
-        console.error(e);
+        console.error("Device Flow Error:", e);
+        viewArea.innerHTML = `<div style="color:red; text-align:center; padding-top:100px;">Connection error. Please check your internet.</div>`;
         return false;
     }
 }
 
-function pollForToken(deviceCode, interval) {
-    const pollInterval = setInterval(async () => {
+async function switchProfile(index) {
+    const profile = allProfiles[index];
+    if (profile) {
+        activeProfileId = profile.id;
+        localStorage.setItem('active_profile_id', activeProfileId);
+        loadActiveProfile();
+        
+        // Fix: Reset notification state when switching profile
+        isFirstCheck = true;
+        lastLiveStreamIds = new Set();
+        
+        // Ricarica tutto
+        await checkLoginStatus();
+        await loadContent();
+        updateNav();
+    }
+}
+
+async function removeActiveProfile() {
+    allProfiles = allProfiles.filter(p => p.id !== activeProfileId);
+    localStorage.setItem('twitch_profiles', JSON.stringify(allProfiles));
+    
+    if (allProfiles.length > 0) {
+        activeProfileId = allProfiles[0].id;
+        localStorage.setItem('active_profile_id', activeProfileId);
+        loadActiveProfile();
+    } else {
+        activeProfileId = '';
+        userToken = '';
+        refreshToken = '';
+        userId = '';
+    }
+    
+    // Reset notifications on removal too
+    isFirstCheck = true;
+    lastLiveStreamIds = new Set();
+
+    await loadContent();
+    updateNav();
+}
+
+async function pollForToken(deviceCode, interval) {
+    if (pollIntervalTimer) clearInterval(pollIntervalTimer);
+    pollIntervalTimer = setInterval(async () => {
         const check = await fetch('https://id.twitch.tv/oauth2/token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -760,31 +860,47 @@ function pollForToken(deviceCode, interval) {
         });
         const res = await check.json();
         if (res.access_token) {
-            clearInterval(pollInterval);
+            clearInterval(pollIntervalTimer);
+            pollIntervalTimer = null;
+            inDeviceFlow = false;
+            
+            // Temporary set token to fetch user info
             userToken = res.access_token;
-            refreshToken = res.refresh_token || '';
-            localStorage.setItem('twitch_access_token', userToken);
-            localStorage.setItem('twitch_refresh_token', refreshToken);
-
-            // Re-show splash during this critical loading phase
-            const splash = document.getElementById('splash-screen');
-            if (splash) {
-                splash.classList.remove('hidden');
-                // Optional: Update splash to indicate we are loading content
+            
+            // Fetch User Info to store in the profile list
+            const userRes = await twitchFetch('https://api.twitch.tv/helix/users');
+            const user = userRes.data && userRes.data[0];
+            
+            if (user) {
+                const newProfile = {
+                    id: user.id,
+                    name: user.display_name,
+                    img: user.profile_image_url,
+                    token: res.access_token,
+                    refresh: res.refresh_token || ''
+                };
+                
+                // Remove existing if same ID
+                allProfiles = allProfiles.filter(p => p.id !== user.id);
+                allProfiles.push(newProfile);
+                localStorage.setItem('twitch_profiles', JSON.stringify(allProfiles));
+                activeProfileId = user.id;
+                localStorage.setItem('active_profile_id', activeProfileId);
+                loadActiveProfile();
             }
 
-            await fetchUserId();
+            // Fix notifications when adding a new account
+            isFirstCheck = true;
+            lastLiveStreamIds = new Set();
 
-            // Pre-fetch Follow data
+            const splash = document.getElementById('splash-screen');
+            if (splash) splash.classList.remove('hidden');
+
             await getFollowData();
-
             currentFocusIndex = 1;
             inMenu = true;
             updateNav();
-
-            // Wait for Home content to be fully ready
             await loadContent();
-
             if (splash) splash.classList.add('hidden');
         }
     }, interval * 1000);
@@ -1441,6 +1557,18 @@ function handleKeydown(e) {
 
     // MANDATORY LOGIN LOCK: Block all navigation if no token
     if (!userToken) {
+        if (inDeviceFlow && allProfiles.length > 0) {
+            if (e.keyCode === 8 || e.keyCode === 27 || e.keyCode === 461 || e.keyCode === 10009) {
+                e.preventDefault();
+                inDeviceFlow = false;
+                if (pollIntervalTimer) {
+                    clearInterval(pollIntervalTimer);
+                    pollIntervalTimer = null;
+                }
+                showProfileScreen();
+                return;
+            }
+        }
         if (e.keyCode >= 37 && e.keyCode <= 40) {
             e.preventDefault();
             return;
@@ -1450,6 +1578,20 @@ function handleKeydown(e) {
             return;
         }
         return;
+    }
+
+    // GESTIONE ANNULLAMENTO DEVICE FLOW (QUANDO GIÀ LOGGATI)
+    if (inDeviceFlow && allProfiles.length > 0) {
+        if (e.keyCode === 8 || e.keyCode === 27 || e.keyCode === 461 || e.keyCode === 10009) {
+            e.preventDefault();
+            inDeviceFlow = false;
+            if (pollIntervalTimer) {
+                clearInterval(pollIntervalTimer);
+                pollIntervalTimer = null;
+            }
+            showProfileScreen();
+            return;
+        }
     }
 
     const isVertical = e.keyCode === 38 || e.keyCode === 40;
@@ -1962,8 +2104,35 @@ function handleKeydown(e) {
                 saveSettings(); showSettingsScreen(); setTimeout(updateNav, 50);
             }
         } else if (selectedId === 'menu-profile') {
-            if (e.keyCode === 38) { inMenu = true; updateNav(); showProfileScreen(); }
-            if (e.keyCode === 13 && userToken) { logout(); inMenu = true; updateNav(); }
+            if (allProfiles.length === 0) {
+                if (e.keyCode === 38) { inMenu = true; updateNav(); showProfileScreen(); }
+                return;
+            }
+
+            if (profileRow === 0) { // Riga Profili + Add
+                if (e.keyCode === 39) { // Destra
+                    if (profileActiveCol < allProfiles.length) { profileActiveCol++; showProfileScreen(); }
+                } else if (e.keyCode === 37) { // Sinistra
+                    if (profileActiveCol > 0) { profileActiveCol--; showProfileScreen(); }
+                } else if (e.keyCode === 40) { // Giù -> Logout
+                    profileRow = 1; showProfileScreen();
+                } else if (e.keyCode === 38) { // Su -> Menu
+                    inMenu = true; updateNav(); showProfileScreen();
+                } else if (e.keyCode === 13) { // OK
+                    if (profileActiveCol < allProfiles.length) {
+                        switchProfile(profileActiveCol);
+                    } else {
+                        // Tasto Add Profile (+)
+                        startDeviceFlow();
+                    }
+                }
+            } else if (profileRow === 1) { // Riga Logout
+                if (e.keyCode === 38) { // Su -> Profili
+                    profileRow = 0; showProfileScreen();
+                } else if (e.keyCode === 13) { // OK
+                    removeActiveProfile();
+                }
+            }
         }
     }
 }
