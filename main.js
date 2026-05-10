@@ -6,14 +6,15 @@ let userId = localStorage.getItem('twitch_user_id') || '';
 // --- VARIABILI PLAYER NATIVO ---
 let inPlayer = false;
 let uiTimeout = null;
-let playerFocusIndex = 0; // 0: Play, 1: Quality
-const playerBtns = ['btn-play', 'btn-quality'];
+let playerFocusIndex = 0; // 0: Play, 1: Quality, 2: Channel
+const playerBtns = ['btn-play', 'btn-quality', 'btn-goto-channel'];
 let isPlaying = true;
 let isQualityMenuOpen = false;
 let qualityOptions = [];
 let qualityFocusIndex = 0;
 let currentStreamChannel = "";
 let currentStreamId = "";
+let currentStreamTitle = "";
 
 // Default barPos is 'center'
 let appSettings = JSON.parse(localStorage.getItem('twitch_settings')) || { barPos: 'center', theme: 'dark', performanceMode: false, notifications: true };
@@ -162,6 +163,23 @@ async function refreshTwitchToken() {
         console.error("Errore durante il refresh:", error);
         await logout();
     }
+}
+
+function getThumbSize(type) {
+    if (appSettings.performanceMode) {
+        if (type === 'stream') return { w: 400, h: 225 };
+        if (type === 'category') return { w: 150, h: 200 };
+    }
+    if (type === 'stream') return { w: 800, h: 450 };
+    if (type === 'category') return { w: 300, h: 400 };
+    return { w: 600, h: 338 }; // default
+}
+
+function getSafeThumb(url, type) {
+    if (!url) return 'icon.png';
+    const size = getThumbSize(type);
+    return url.replace('{width}', size.w).replace('{height}', size.h)
+              .replace('%{width}', size.w).replace('%{height}', size.h);
 }
 
 async function logout() {
@@ -364,10 +382,10 @@ function renderHome() {
             row.data.forEach((item) => {
                 const card = document.createElement('div');
                 card.className = 'category-card';
-                let thumb = item.box_art_url.replace('{width}', '300').replace('{height}', '400');
+                let thumb = getSafeThumb(item.box_art_url, 'category');
 
                 card.innerHTML = `
-                    <img src="${thumb}" style="width:100%; height:100%; object-fit:cover;">
+                    <img src="${thumb}" loading="lazy" onerror="this.src='icon.png'" style="width:100%; height:100%; object-fit:cover;">
                     <div class="card-info"><div style="font-size:20px; font-weight:bold; color:white;">${item.name}</div></div>`;
                 rowDiv.appendChild(card);
             });
@@ -375,12 +393,12 @@ function renderHome() {
             row.data.forEach((item) => {
                 const card = document.createElement('div');
                 card.className = row.isHero ? 'channel-card hero-card' : 'channel-card';
-                let thumb = item.thumbnail_url.replace('{width}', '800').replace('{height}', '450');
+                let thumb = getSafeThumb(item.thumbnail_url, 'stream');
                 const viewers = formatViewers(item.viewer_count);
                 card.innerHTML = `
                     <div class="badge-live">LIVE</div>
                     <div class="badge-viewers">${viewers}</div>
-                    <img src="${thumb}" style="width:100%; height:100%; object-fit:cover;">
+                    <img src="${thumb}" loading="lazy" onerror="this.src='icon.png'" style="width:100%; height:100%; object-fit:cover;">
                     <div class="card-info">
                         <div style="font-size:${row.isHero ? '28' : '22'}px; font-weight:bold; color:white;">${item.user_name}</div>
                         <div style="font-size:${row.isHero ? '18' : '16'}px; color:#adadb8; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.title}</div>
@@ -518,13 +536,13 @@ function renderFollowScreen() {
         } else if (row.type === 'stream') {
             html += `<div id="follow-row-${rowIndex}" class="channel-grid" style="justify-content:flex-start; width: 1830px; gap: 15px;">`;
             row.data.forEach((item, colIndex) => {
-                let thumb = item.thumbnail_url.replace('{width}', '600').replace('{height}', '338');
+                let thumb = getSafeThumb(item.thumbnail_url, 'stream');
                 const viewers = formatViewers(item.viewer_count);
                 html += `
                     <div id="follow-card-${rowIndex}-${colIndex}" class="channel-card">
                         <div class="badge-live">LIVE</div>
                         <div class="badge-viewers">${viewers}</div>
-                        <img src="${thumb}" style="width:100%; height:100%; object-fit:cover;">
+                        <img src="${thumb}" loading="lazy" onerror="this.src='icon.png'" style="width:100%; height:100%; object-fit:cover;">
                         <div class="card-info">
                             <div style="font-size:22px; font-weight:bold; color:white;">${item.user_name}</div>
                             <div style="font-size:16px; color:#adadb8; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.title}</div>
@@ -941,13 +959,13 @@ function renderSearchResults() {
             const isSelected = searchActiveRow === rIdx && searchActiveCol === cIdx;
             const selClass = isSelected ? 'selected' : '';
             if (row.type === 'live') {
-                let thumb = item.thumbnail_url.replace('{width}', '600').replace('{height}', '338');
+                let thumb = getSafeThumb(item.thumbnail_url, 'stream');
                 const viewers = formatViewers(item.viewer_count);
                 html += `
                     <div id="search-card-${rIdx}-${cIdx}" class="channel-card follow-card ${selClass}" style="flex-shrink:0;">
                         <div class="badge-live">LIVE</div>
                         <div class="badge-viewers">${viewers}</div>
-                        <img src="${thumb}" style="width:100%; height:100%; object-fit:cover;">
+                        <img src="${thumb}" loading="lazy" onerror="this.src='icon.png'" style="width:100%; height:100%; object-fit:cover;">
                         <div class="card-info">
                             <div style="font-size:22px; font-weight:bold; color:white;">${item.user_name}</div>
                             <div style="font-size:16px; color:#adadb8; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.title}</div>
@@ -955,11 +973,10 @@ function renderSearchResults() {
                     </div>`;
             } else if (row.type === 'category') {
                 const box = item.box_art_url || '';
-                // Search API often returns hardcoded URLs like -52x72.jpg instead of {width} templates
-                const highResBox = box.replace(/-[0-9]+x[0-9]+\./, '-400x532.').replace('{width}', '400').replace('{height}', '532');
+                let highResBox = getSafeThumb(box, 'category');
                 html += `
                     <div class="category-card ${selClass}" id="search-card-${rIdx}-${cIdx}" style="flex-shrink:0; width:200px; height:266px;">
-                        <img src="${highResBox}" style="width:100%; height:100%; border-radius:10px; object-fit:cover;">
+                        <img src="${highResBox}" loading="lazy" onerror="this.src='icon.png'" style="width:100%; height:100%; border-radius:10px; object-fit:cover;">
                         <div style="margin-top:10px; font-weight:bold; color:${titleColor}; text-align:center;">${item.name}</div>
                     </div>`;
             } else if (row.type === 'channel') {
@@ -967,7 +984,7 @@ function renderSearchResults() {
                 const highResThumb = thumb.replace(/-[0-9]+x[0-9]+\./, '-300x300.').replace('{width}', '300').replace('{height}', '300');
                 html += `
                     <div class="search-channel-card ${selClass}" id="search-card-${rIdx}-${cIdx}" style="flex-shrink:0; width:350px;">
-                        <img src="${highResThumb}" class="search-avatar">
+                        <img src="${highResThumb}" loading="lazy" onerror="this.src='icon.png'" class="search-avatar">
                         <div class="search-info">
                             <div class="search-name">${item.display_name}</div>
                             <div class="search-game">${item.game_name || 'Offline'}</div>
@@ -1116,12 +1133,12 @@ function renderChannelView() {
         html += `<div style="width:100%; overflow:visible; perspective:1200px; margin-bottom:40px;">
                     <div id="channel-row-0" class="channel-grid">`;
         channelViewData.vods.forEach((item, idx) => {
-            let thumb = item.thumbnail_url ? item.thumbnail_url.replace('%{width}', '600').replace('%{height}', '338').replace('{width}', '600').replace('{height}', '338') : '';
+            let thumb = getSafeThumb(item.thumbnail_url, 'stream');
             html += `
                 <div class="channel-card" id="channel-card-0-${idx}">
                     ${item.isLiveItem ? '<div class="badge-live">LIVE</div>' : '<div class="badge-viewers no-dot">' + item.duration + '</div>'}
                     ${item.isLiveItem ? '<div class="badge-viewers">' + formatViewers(item.viewer_count) + '</div>' : ''}
-                    <img src="${thumb}" style="width:100%; height:100%; object-fit:cover;">
+                    <img src="${thumb}" loading="lazy" onerror="this.src='icon.png'" style="width:100%; height:100%; object-fit:cover;">
                     <div class="card-info">
                         <div style="font-size:22px; font-weight:bold; color:white;">${item.title}</div>
                         <div style="font-size:16px; color:#adadb8; margin-top:6px;">${item.isLiveItem ? item.game_name : new Date(item.created_at).toLocaleDateString()}</div>
@@ -1146,11 +1163,11 @@ function renderChannelView() {
             html += `<div style="width:100%; overflow:visible; perspective:1200px; margin-bottom:40px;">
                         <div id="channel-row-2" class="channel-grid">`;
             channelViewData.clips.forEach((item, idx) => {
-                let thumb = item.thumbnail_url;
+                let thumb = getSafeThumb(item.thumbnail_url, 'stream');
                 html += `
                     <div class="channel-card" id="channel-card-2-${idx}">
                         <div class="badge-viewers no-dot">${formatViewers(item.view_count)} views</div>
-                        <img src="${thumb}" style="width:100%; height:100%; object-fit:cover;">
+                        <img src="${thumb}" loading="lazy" onerror="this.src='icon.png'" style="width:100%; height:100%; object-fit:cover;">
                         <div class="card-info">
                             <div style="font-size:22px; font-weight:bold; color:white;">${item.title}</div>
                             <div style="font-size:16px; color:#adadb8; margin-top:6px;">By ${item.broadcaster_name}</div>
@@ -1338,20 +1355,20 @@ function renderCategoryView() {
             card.id = `cat-card-${rowIndex}-${colIndex}`;
 
             if (row.type === 'stream') {
-                let thumb = item.thumbnail_url.replace('{width}', '800').replace('{height}', '450');
+                let thumb = getSafeThumb(item.thumbnail_url, 'stream');
                 card.innerHTML = `
                     <div class="badge-live">LIVE</div>
                     <div class="badge-viewers">${formatViewers(item.viewer_count)}</div>
-                    <img src="${thumb}" style="width:100%; height:100%; object-fit:cover;">
+                    <img src="${thumb}" loading="lazy" onerror="this.src='icon.png'" style="width:100%; height:100%; object-fit:cover;">
                     <div class="card-info">
                         <div style="font-size:22px; font-weight:bold; color:white;">${item.user_name}</div>
                         <div style="font-size:16px; color:#adadb8; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.title}</div>
                     </div>`;
             } else if (row.type === 'clip') {
-                let thumb = item.thumbnail_url;
+                let thumb = getSafeThumb(item.thumbnail_url, 'stream');
                 card.innerHTML = `
                     <div class="badge-viewers no-dot">${formatViewers(item.view_count)} views</div>
-                    <img src="${thumb}" style="width:100%; height:100%; object-fit:cover;">
+                    <img src="${thumb}" loading="lazy" onerror="this.src='icon.png'" style="width:100%; height:100%; object-fit:cover;">
                     <div class="card-info">
                         <div style="font-size:22px; font-weight:bold; color:white;">${item.title}</div>
                         <div style="font-size:16px; color:#adadb8; margin-top:6px;">By ${item.broadcaster_name}</div>
@@ -1485,6 +1502,12 @@ function handleKeydown(e) {
                         document.getElementById('icon-play').style.display = 'block';
                     } else {
                         webapis.avplay.play();
+                        setTimeout(() => {
+                            try {
+                                webapis.avplay.jumpForward(0); // Jump to current live point
+                            } catch(e) {}
+                        }, 500);
+
                         isPlaying = true;
                         document.getElementById('icon-pause').style.display = 'block';
                         document.getElementById('icon-play').style.display = 'none';
@@ -1494,16 +1517,10 @@ function handleKeydown(e) {
                 const menu = document.getElementById('quality-menu');
                 menu.innerHTML = qualityOptions.map((q, i) => `<div class="quality-item ${i === 0 ? 'focused' : ''}">${q.name}</div>`).join('');
                 menu.style.display = 'flex'; isQualityMenuOpen = true; qualityFocusIndex = 0;
-            } else if (playerFocusIndex === 2) { // Toggle Chat
-                isChatOpen = !isChatOpen;
-                const chatFrame = document.getElementById('twitch-chat');
-                if (isChatOpen) {
-                    chatFrame.src = `https://www.twitch.tv/embed/${currentStreamChannel}/chat?parent=localhost&darkpopout`;
-                    chatFrame.style.display = 'block';
-                } else {
-                    chatFrame.src = '';
-                    chatFrame.style.display = 'none';
-                }
+            } else if (playerFocusIndex === 2) { // Vai al Canale
+                const channelToOpen = currentStreamChannel;
+                closeNativePlayer();
+                openChannelView(channelToOpen);
             }
         }
         updatePlayerFocus();
@@ -1643,7 +1660,7 @@ function handleKeydown(e) {
                 } else if (e.keyCode === 13) {
                     const item = channelViewData.vods[channelViewActiveCol];
                     if (item.isLiveItem) {
-                        openNativePlayer(item.user_name || item.user_login, item.user_id);
+                        openNativePlayer(item.user_name || item.user_login, item.user_id, item.title);
                     } else {
                         window.open(item.url, '_blank');
                     }
@@ -1761,7 +1778,7 @@ function handleKeydown(e) {
             } else if (e.keyCode === 13) {
                 const item = categoryDataRows[categoryActiveRow].data[categoryActiveCol];
                 if (categoryDataRows[categoryActiveRow].type === 'stream') {
-                    openNativePlayer(item.user_name || item.user_login, item.user_id);
+                    openNativePlayer(item.user_name || item.user_login, item.user_id, item.title);
                 } else if (categoryDataRows[categoryActiveRow].type === 'clip') {
                     window.open(item.url, '_blank');
                 }
@@ -1883,7 +1900,7 @@ function handleKeydown(e) {
                     openCategoryView(selectedCategory);
                 } else if (currentRowData.type === 'stream') {
                     const selectedStream = currentRowData.data[colIndices[activeRow]];
-                    openNativePlayer(selectedStream.user_name || selectedStream.user_login, selectedStream.user_id);
+                    openNativePlayer(selectedStream.user_name || selectedStream.user_login, selectedStream.user_id, selectedStream.title);
                 }
             }
             if (e.keyCode === 8 || e.keyCode === 27 || e.keyCode === 461 || e.keyCode === 10009) {
@@ -1924,9 +1941,11 @@ function handleKeydown(e) {
             } else if (e.keyCode === 13) {
                 if (currentRowData.type === 'stream') {
                     const selectedStream = currentRowData.data[followActiveCol];
-                    openChannelView(selectedStream.user_name || selectedStream.user_login);
+                    // Click su Card Live in Follow -> Apri direttamente il Player
+                    openNativePlayer(selectedStream.user_name || selectedStream.user_login, selectedStream.user_id, selectedStream.title);
                 } else if (currentRowData.type === 'avatars') {
                     const selectedAvatar = currentRowData.data[followActiveCol];
+                    // Click su Avatar -> Vai al Canale
                     openChannelView(selectedAvatar.login);
                 }
             }
@@ -2003,7 +2022,9 @@ async function getStreamM3u8(channel) {
                 const groupIdMatch = line.match(/GROUP-ID="([^"]+)"/);
                 const nameMatch = line.match(/NAME="([^"]+)"/);
                 if (groupIdMatch && nameMatch) {
-                    mediaMap[groupIdMatch[1]] = nameMatch[1];
+                    // Rimuovi "(source)" dai nomi per un menu più pulito
+                    let cleanName = nameMatch[1].replace(/\(source\)/gi, '').trim();
+                    mediaMap[groupIdMatch[1]] = cleanName;
                 }
             }
         });
@@ -2014,22 +2035,46 @@ async function getStreamM3u8(channel) {
                 const groupId = videoMatch ? videoMatch[1] : null;
                 currentName = groupId && mediaMap[groupId] ? mediaMap[groupId] : (groupId || 'Unknown');
             } else if (line.startsWith('http') && currentName) {
-                // Ensure URL is absolute or protocol-relative if needed, though Twitch usually provides full URLs
                 streams.push({ name: currentName, url: line });
                 currentName = null;
             }
         });
-        return streams;
+
+        // Ordinamento Qualità (Tattica: Dalla più alta alla più bassa)
+        // Manteniamo 'Auto' in cima, poi ordiniamo il resto
+        const autoOption = streams[0];
+        const otherOptions = streams.slice(1);
+        
+        otherOptions.sort((a, b) => {
+            const getRes = (s) => {
+                const m = s.name.match(/(\d+)p/);
+                return m ? parseInt(m[1]) : 0;
+            };
+            return getRes(b) - getRes(a);
+        });
+
+        return [autoOption, ...otherOptions];
     } catch (e) {
         console.error("getStreamM3u8 error:", e);
         return { error: e.message };
     }
 }
 
-async function openNativePlayer(channelName, channelId) {
+async function openNativePlayer(channelName, channelId, streamTitle) {
     inPlayer = true;
+    playerFocusIndex = 0; // Reset focus to Play button
+
+    // Tecniche Ottimizzazione Memoria: "Mondo Vuoto"
+    const appContainer = document.getElementById('app-container');
+    if (appContainer) appContainer.style.display = 'none';
+
     currentStreamChannel = channelName;
     currentStreamId = channelId;
+    currentStreamTitle = streamTitle || "";
+
+    // Aggiorna Titolo UI
+    const titleEl = document.getElementById('player-live-title');
+    if (titleEl) titleEl.innerText = currentStreamTitle;
     
     // Create AVPlayer dynamically as requested
     let existingPlayer = document.getElementById('av-player');
@@ -2081,6 +2126,15 @@ function playVideoUrl(url) {
     try {
         webapis.avplay.open(url);
 
+        // Ottimizzazione Buffer (Tattica da SmartTwitchTV): 
+        // Imposta un buffer di 5 secondi per stabilizzare la riproduzione e ridurre il carico CPU/RAM dovuto a continui re-buffering su connessioni instabili.
+        try {
+            webapis.avplay.setBufferingParam('PLAYER_BUFFER_FOR_PLAY', 'PLAYER_BUFFER_SIZE_IN_SECOND', 5);
+            webapis.avplay.setBufferingParam('PLAYER_BUFFER_FOR_RESUME', 'PLAYER_BUFFER_SIZE_IN_SECOND', 5);
+        } catch (bufErr) {
+            console.warn("Impossibile impostare i parametri di buffering:", bufErr);
+        }
+
         var listener = {
             onbufferingstart: function() { console.log("Buffering start."); },
             onbufferingprogress: function(percent) { console.log("Buffering progress data : " + percent); },
@@ -2114,6 +2168,10 @@ function playVideoUrl(url) {
 
 function closeNativePlayer() {
     inPlayer = false;
+
+    // Ripristina la UI (Mondo Vuoto)
+    const appContainer = document.getElementById('app-container');
+    if (appContainer) appContainer.style.display = 'block';
 
     // Chiusura aggressiva vitale per Smart TV AVPlay
     try {

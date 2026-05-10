@@ -7,7 +7,7 @@ const req1 = https.request('https://gql.twitch.tv/gql', { method: 'POST', header
     res1.on('end', () => {
         const login = JSON.parse(data1).data.streams.edges[0].node.broadcaster.login;
         console.log('Top live channel:', login);
-
+        
         const gqlBody2 = JSON.stringify({
             operationName: 'PlaybackAccessToken_Template',
             query: 'query PlaybackAccessToken_Template($login: String!, $playerType: String!) { streamPlaybackAccessToken(channelName: $login, params: {platform: "web", playerBackend: "mediaplayer", playerType: $playerType}) { value signature } }',
