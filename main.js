@@ -2,7 +2,7 @@ const CLIENT_ID = '9g8h4ha9stbc9r76624evvlx4bzk39';
 
 const i18n = {
     'English': {
-        menu_search: 'Search', menu_home: 'Home', menu_follow: 'Following', menu_settings: 'Settings', menu_profile: 'Profile',
+        menu_search: 'Search', menu_home: 'Home', menu_follow: 'Followed', menu_settings: 'Settings', menu_profile: 'Profile',
         tab_appearance: 'Appearance', tab_system: 'System',
         setting_bar_pos: 'Bar Position', setting_theme: 'Dark Theme', setting_notifications: 'Notifications',
         setting_perf: 'Performance Mode', setting_adblock: 'Ad Block (Proxy)', setting_lang: 'Language',
@@ -15,8 +15,10 @@ const i18n = {
         exit_title: 'Exit Application?', exit_cancel: 'Cancel', exit_confirm: 'Exit',
         search_placeholder: 'Search channels or categories...',
         search_live: 'Live Channels', search_categories: 'Categories',
-        feat_content: 'Featured Content', top_cats: 'Top Categories', live_recom: 'Live Recommended',
-        followed_channels: 'Channels you follow', center: 'Center', left: 'Left'
+        feat_content: 'Featured Content', top_cats: 'Top Categories', live_recom: 'Followed Channels',
+        followed_channels: 'Followed Channels', center: 'Center', left: 'Left',
+        loading: 'Loading...', live_badge: 'LIVE', loading_error: 'Loading error.',
+        channels: 'Channels'
     },
     'Italiano': {
         menu_search: 'Cerca', menu_home: 'Home', menu_follow: 'Seguiti', menu_settings: 'Impostazioni', menu_profile: 'Profilo',
@@ -32,11 +34,13 @@ const i18n = {
         exit_title: 'Vuoi uscire dall\'applicazione?', exit_cancel: 'Annulla', exit_confirm: 'Esci',
         search_placeholder: 'Cerca canali o categorie...',
         search_live: 'Canali Live', search_categories: 'Categorie',
-        feat_content: 'Contenuti in primo piano', top_cats: 'Categorie Popolari', live_recom: 'Live Consigliate',
-        followed_channels: 'Canali che segui', center: 'Centro', left: 'Sinistra'
+        feat_content: 'Contenuti in primo piano', top_cats: 'Categorie Popolari', live_recom: 'Canali Seguiti',
+        followed_channels: 'Canali Seguiti', center: 'Centro', left: 'Sinistra',
+        loading: 'Caricamento...', live_badge: 'LIVE', loading_error: 'Errore di caricamento.',
+        channels: 'Canali'
     },
     'Español': {
-        menu_search: 'Buscar', menu_home: 'Inicio', menu_follow: 'Siguiendo', menu_settings: 'Ajustes', menu_profile: 'Perfil',
+        menu_search: 'Buscar', menu_home: 'Inicio', menu_follow: 'Seguidos', menu_settings: 'Ajustes', menu_profile: 'Perfil',
         tab_appearance: 'Apariencia', tab_system: 'Sistema',
         setting_bar_pos: 'Posición de barra', setting_theme: 'Tema oscuro', setting_notifications: 'Notificaciones',
         setting_perf: 'Modo rendimiento', setting_adblock: 'Bloqueo de anuncios', setting_lang: 'Idioma',
@@ -49,11 +53,13 @@ const i18n = {
         exit_title: '¿Salir de la aplicación?', exit_cancel: 'Cancelar', exit_confirm: 'Salir',
         search_placeholder: 'Buscar canales o categorías...',
         search_live: 'Canales en vivo', search_categories: 'Categorías',
-        feat_content: 'Contenido destacado', top_cats: 'Categorías principales', live_recom: 'Vivos recomendados',
-        followed_channels: 'Canales que sigues', center: 'Centro', left: 'Izquierda'
+        feat_content: 'Contenido destacado', top_cats: 'Categorías principales', live_recom: 'Canales Seguidos',
+        followed_channels: 'Canales Seguidos', center: 'Centro', left: 'Izquierda',
+        loading: 'Cargando...', live_badge: 'VIVO', loading_error: 'Error de carga.',
+        channels: 'Canales'
     },
     '中文': {
-        menu_search: '搜索', menu_home: '首页', menu_follow: '关注', menu_settings: '设置', menu_profile: '个人资料',
+        menu_search: '搜索', menu_home: '首页', menu_follow: '已关注', menu_settings: '设置', menu_profile: '个人资料',
         tab_appearance: '外观', tab_system: '系统',
         setting_bar_pos: '栏位置', setting_theme: '深色主题', setting_notifications: '通知',
         setting_perf: '性能模式', setting_adblock: '广告拦截', setting_lang: '语言',
@@ -66,8 +72,10 @@ const i18n = {
         exit_title: '退出应用？', exit_cancel: '取消', exit_confirm: '退出',
         search_placeholder: '搜索频道或类别...',
         search_live: '正在直播', search_categories: '类别',
-        feat_content: '精选内容', top_cats: '热门类别', live_recom: '推荐直播',
-        followed_channels: '你关注的频道', center: '居中', left: '居左'
+        feat_content: '精选内容', top_cats: '热门类别', live_recom: '已关注的频道',
+        followed_channels: '已关注的频道', center: '居中', left: '居左',
+        loading: '加载中...', live_badge: '直播', loading_error: '加载错误。',
+        channels: '频道'
     },
     'Français': {
         menu_search: 'Rechercher', menu_home: 'Accueil', menu_follow: 'Suivis', menu_settings: 'Paramètres', menu_profile: 'Profil',
@@ -83,8 +91,10 @@ const i18n = {
         exit_title: 'Quitter l\'application ?', exit_cancel: 'Annuler', exit_confirm: 'Quitter',
         search_placeholder: 'Rechercher des chaînes ou catégories...',
         search_live: 'Chaînes en direct', search_categories: 'Catégories',
-        feat_content: 'Contenu vedette', top_cats: 'Meilleures catégories', live_recom: 'Vidéos recommandées',
-        followed_channels: 'Chaînes suivies', center: 'Centre', left: 'Gauche'
+        feat_content: 'Contenu vedette', top_cats: 'Meilleures catégories', live_recom: 'Chaînes Suivies',
+        followed_channels: 'Chaînes Suivies', center: 'Centre', left: 'Gauche',
+        loading: 'Chargement...', live_badge: 'DIRECT', loading_error: 'Erreur de chargement.',
+        channels: 'Chaînes'
     }
 };
 
@@ -432,7 +442,7 @@ async function loadContent() {
     currentNavSequence++;
     const mySeq = currentNavSequence;
 
-    if (viewArea) viewArea.innerHTML = `<div style="text-align:center; padding-top:100px; color:white;">Loading...</div>`;
+    if (viewArea) viewArea.innerHTML = `<div style="text-align:center; padding-top:100px; color:white;">${t('loading')}</div>`;
 
     if (selectedId === 'menu-search') {
         searchDataRows = [];
@@ -511,7 +521,7 @@ async function getTwitchHome(seqId) {
         if (seqId !== currentNavSequence) return;
         console.error("Errore API", e);
         const va = document.getElementById('main-view-area');
-        if (va) va.innerHTML = `<div style="color:red; text-align:center; padding-top:100px;">Loading error.</div>`;
+        if (va) va.innerHTML = `<div style="color:red; text-align:center; padding-top:100px;">${t('loading_error')}</div>`;
     }
 }
 
@@ -559,7 +569,7 @@ function renderHome() {
                 let thumb = getSafeThumb(item.thumbnail_url, 'stream');
                 const viewers = formatViewers(item.viewer_count);
                 card.innerHTML = `
-                    <div class="badge-live">LIVE</div>
+                    <div class="badge-live">${t('live_badge')}</div>
                     <div class="badge-viewers">${viewers}</div>
                     <img src="${thumb}" loading="lazy" onerror="this.src='icon.png'" style="width:100%; height:100%; object-fit:cover;">
                     <div class="card-info">
@@ -1401,7 +1411,7 @@ async function executeSearch(query) {
             searchDataRows.push({ title: t('search_categories'), type: 'category', data: popularCategories.slice(0, limit) });
         }
         if (allChannels.length > 0) {
-            searchDataRows.push({ title: 'Canali', type: 'channel', data: allChannels.slice(0, limit) });
+            searchDataRows.push({ title: t('channels'), type: 'channel', data: allChannels.slice(0, limit) });
         }
 
         if (searchDataRows.length === 0) {

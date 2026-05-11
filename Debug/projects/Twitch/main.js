@@ -1,5 +1,109 @@
 const CLIENT_ID = '9g8h4ha9stbc9r76624evvlx4bzk39';
 
+const i18n = {
+    'English': {
+        menu_search: 'Search', menu_home: 'Home', menu_follow: 'Followed', menu_settings: 'Settings', menu_profile: 'Profile',
+        tab_appearance: 'Appearance', tab_system: 'System',
+        setting_bar_pos: 'Bar Position', setting_theme: 'Dark Theme', setting_notifications: 'Notifications',
+        setting_perf: 'Performance Mode', setting_adblock: 'Ad Block (Proxy)', setting_lang: 'Language',
+        setting_status: 'Twitch Status', setting_remove: 'Remove Account from List',
+        status_ok: 'All Systems Operational',
+        accounts_title: 'Accounts', add_account: 'Add Account',
+        viewers: 'viewers', followers: 'followers', streams: 'Streams', clips: 'Clips',
+        days_7: '7 Days', days_30: '30 Days',
+        no_live: 'No followed channels are live right now.',
+        exit_title: 'Exit Application?', exit_cancel: 'Cancel', exit_confirm: 'Exit',
+        search_placeholder: 'Search channels or categories...',
+        search_live: 'Live Channels', search_categories: 'Categories',
+        feat_content: 'Featured Content', top_cats: 'Top Categories', live_recom: 'Followed Channels',
+        followed_channels: 'Followed Channels', center: 'Center', left: 'Left',
+        loading: 'Loading...', live_badge: 'LIVE', loading_error: 'Loading error.',
+        channels: 'Channels'
+    },
+    'Italiano': {
+        menu_search: 'Cerca', menu_home: 'Home', menu_follow: 'Seguiti', menu_settings: 'Impostazioni', menu_profile: 'Profilo',
+        tab_appearance: 'Aspetto', tab_system: 'Sistema',
+        setting_bar_pos: 'Posizione Barra', setting_theme: 'Tema Scuro', setting_notifications: 'Notifiche',
+        setting_perf: 'Modalità Performance', setting_adblock: 'Blocco Pubblicità', setting_lang: 'Lingua',
+        setting_status: 'Stato Twitch', setting_remove: 'Rimuovi Account dalla Lista',
+        status_ok: 'Tutti i sistemi operativi',
+        accounts_title: 'Account', add_account: 'Aggiungi Account',
+        viewers: 'spettatori', followers: 'follower', streams: 'Stream', clips: 'Clip',
+        days_7: '7 Giorni', days_30: '30 Giorni',
+        no_live: 'Nessun canale seguito è live al momento.',
+        exit_title: 'Vuoi uscire dall\'applicazione?', exit_cancel: 'Annulla', exit_confirm: 'Esci',
+        search_placeholder: 'Cerca canali o categorie...',
+        search_live: 'Canali Live', search_categories: 'Categorie',
+        feat_content: 'Contenuti in primo piano', top_cats: 'Categorie Popolari', live_recom: 'Canali Seguiti',
+        followed_channels: 'Canali Seguiti', center: 'Centro', left: 'Sinistra',
+        loading: 'Caricamento...', live_badge: 'LIVE', loading_error: 'Errore di caricamento.',
+        channels: 'Canali'
+    },
+    'Español': {
+        menu_search: 'Buscar', menu_home: 'Inicio', menu_follow: 'Seguidos', menu_settings: 'Ajustes', menu_profile: 'Perfil',
+        tab_appearance: 'Apariencia', tab_system: 'Sistema',
+        setting_bar_pos: 'Posición de barra', setting_theme: 'Tema oscuro', setting_notifications: 'Notificaciones',
+        setting_perf: 'Modo rendimiento', setting_adblock: 'Bloqueo de anuncios', setting_lang: 'Idioma',
+        setting_status: 'Estado de Twitch', setting_remove: 'Eliminar cuenta de la lista',
+        status_ok: 'Todos los sistemas operativos',
+        accounts_title: 'Cuentas', add_account: 'Añadir cuenta',
+        viewers: 'espectadores', followers: 'seguidores', streams: 'Streams', clips: 'Clips',
+        days_7: '7 Días', days_30: '30 Días',
+        no_live: 'No hay canales seguidos en vivo ahora mismo.',
+        exit_title: '¿Salir de la aplicación?', exit_cancel: 'Cancelar', exit_confirm: 'Salir',
+        search_placeholder: 'Buscar canales o categorías...',
+        search_live: 'Canales en vivo', search_categories: 'Categorías',
+        feat_content: 'Contenido destacado', top_cats: 'Categorías principales', live_recom: 'Canales Seguidos',
+        followed_channels: 'Canales Seguidos', center: 'Centro', left: 'Izquierda',
+        loading: 'Cargando...', live_badge: 'VIVO', loading_error: 'Error de carga.',
+        channels: 'Canales'
+    },
+    '中文': {
+        menu_search: '搜索', menu_home: '首页', menu_follow: '已关注', menu_settings: '设置', menu_profile: '个人资料',
+        tab_appearance: '外观', tab_system: '系统',
+        setting_bar_pos: '栏位置', setting_theme: '深色主题', setting_notifications: '通知',
+        setting_perf: '性能模式', setting_adblock: '广告拦截', setting_lang: '语言',
+        setting_status: 'Twitch 状态', setting_remove: '从列表中删除账户',
+        status_ok: '所有系统运行正常',
+        accounts_title: '账户', add_account: '添加账户',
+        viewers: '观众', followers: '粉丝', streams: '直播', clips: '剪辑',
+        days_7: '7 天', days_30: '30 天',
+        no_live: '目前没有关注的频道在直播。',
+        exit_title: '退出应用？', exit_cancel: '取消', exit_confirm: '退出',
+        search_placeholder: '搜索频道或类别...',
+        search_live: '正在直播', search_categories: '类别',
+        feat_content: '精选内容', top_cats: '热门类别', live_recom: '已关注的频道',
+        followed_channels: '已关注的频道', center: '居中', left: '居左',
+        loading: '加载中...', live_badge: '直播', loading_error: '加载错误。',
+        channels: '频道'
+    },
+    'Français': {
+        menu_search: 'Rechercher', menu_home: 'Accueil', menu_follow: 'Suivis', menu_settings: 'Paramètres', menu_profile: 'Profil',
+        tab_appearance: 'Apparence', tab_system: 'Système',
+        setting_bar_pos: 'Position de la barre', setting_theme: 'Thème sombre', setting_notifications: 'Notifications',
+        setting_perf: 'Mode performance', setting_adblock: 'Bloqueur de pub', setting_lang: 'Langue',
+        setting_status: 'État de Twitch', setting_remove: 'Supprimer le compte de la liste',
+        status_ok: 'Tous les systèmes sont opérationnels',
+        accounts_title: 'Comptes', add_account: 'Ajouter un compte',
+        viewers: 'spectateurs', followers: 'abonnés', streams: 'Streams', clips: 'Clips',
+        days_7: '7 Jours', days_30: '30 Jours',
+        no_live: 'Aucune chaîne suivie n\'est en direct pour le moment.',
+        exit_title: 'Quitter l\'application ?', exit_cancel: 'Annuler', exit_confirm: 'Quitter',
+        search_placeholder: 'Rechercher des chaînes ou catégories...',
+        search_live: 'Chaînes en direct', search_categories: 'Catégories',
+        feat_content: 'Contenu vedette', top_cats: 'Meilleures catégories', live_recom: 'Chaînes Suivies',
+        followed_channels: 'Chaînes Suivies', center: 'Centre', left: 'Gauche',
+        loading: 'Chargement...', live_badge: 'DIRECT', loading_error: 'Erreur de chargement.',
+        channels: 'Chaînes'
+    }
+};
+
+function t(key) {
+    const lang = appSettings.language || 'English';
+    return i18n[lang][key] || i18n['English'][key] || key;
+}
+
+
 // Gestione Multi-Profilo
 let allProfiles = JSON.parse(localStorage.getItem('twitch_profiles')) || [];
 let activeProfileId = localStorage.getItem('active_profile_id') || '';
@@ -338,7 +442,7 @@ async function loadContent() {
     currentNavSequence++;
     const mySeq = currentNavSequence;
 
-    if (viewArea) viewArea.innerHTML = `<div style="text-align:center; padding-top:100px; color:white;">Loading...</div>`;
+    if (viewArea) viewArea.innerHTML = `<div style="text-align:center; padding-top:100px; color:white;">${t('loading')}</div>`;
 
     if (selectedId === 'menu-search') {
         searchDataRows = [];
@@ -391,9 +495,9 @@ async function getTwitchHome(seqId) {
             if (userId && userToken) {
                 const folRes = await twitchFetch(`https://api.twitch.tv/helix/streams/followed?user_id=${userId}&first=10`);
                 if (folRes.data && folRes.data.length > 0) {
-                    homeDataRows.push({ title: "Channels you follow", type: "stream", data: folRes.data });
+                    homeDataRows.push({ title: t('live_recom'), type: 'stream', data: folRes.data });
                 } else {
-                    homeDataRows.push({ title: "Channels you follow", type: "stream", data: [] });
+                    homeDataRows.push({ title: t('followed_channels'), type: 'stream', data: [] });
                 }
             }
         }
@@ -403,7 +507,7 @@ async function getTwitchHome(seqId) {
         if (catRes.data && catRes.data.length > 0) {
             // We skip the viewer count fetch here to make home load much faster.
             // Viewer counts for categories are secondary on the home page.
-            homeDataRows.push({ title: "Categories", type: "category", data: catRes.data });
+            homeDataRows.push({ title: t('top_cats'), type: 'category', data: catRes.data });
         }
 
         if (seqId !== currentNavSequence) return; // Prevent race conditions
@@ -417,7 +521,7 @@ async function getTwitchHome(seqId) {
         if (seqId !== currentNavSequence) return;
         console.error("Errore API", e);
         const va = document.getElementById('main-view-area');
-        if (va) va.innerHTML = `<div style="color:red; text-align:center; padding-top:100px;">Loading error.</div>`;
+        if (va) va.innerHTML = `<div style="color:red; text-align:center; padding-top:100px;">${t('loading_error')}</div>`;
     }
 }
 
@@ -465,7 +569,7 @@ function renderHome() {
                 let thumb = getSafeThumb(item.thumbnail_url, 'stream');
                 const viewers = formatViewers(item.viewer_count);
                 card.innerHTML = `
-                    <div class="badge-live">LIVE</div>
+                    <div class="badge-live">${t('live_badge')}</div>
                     <div class="badge-viewers">${viewers}</div>
                     <img src="${thumb}" loading="lazy" onerror="this.src='icon.png'" style="width:100%; height:100%; object-fit:cover;">
                     <div class="card-info">
@@ -601,7 +705,7 @@ function renderFollowScreen() {
     let html = '<div id="follow-view" style="padding-top:20px; padding-bottom:60px; display:flex; flex-direction:column; align-items:center; gap:20px;">';
     followDataRows.forEach((row, rowIndex) => {
         if (row.type === 'empty') {
-            html += `<div style="color:white; font-size:30px; margin-top:100px;">No followed channels are live right now.</div>`;
+            html += `<div style="color:white; font-size:30px; margin-top:100px;">${t('no_live')}</div>`;
         } else if (row.type === 'stream') {
             html += `<div id="follow-row-${rowIndex}" class="channel-grid" style="justify-content:flex-start; width: 1830px; gap: 15px;">`;
             row.data.forEach((item, colIndex) => {
@@ -743,9 +847,9 @@ function showSettingsScreen() {
         contentHtml = `
             <div class="settings-container">
                 <div class="settings-item ${(!inMenu && settingsRow === 0) ? 'focused' : ''}">
-                    <div class="settings-label">Bar Position</div>
+                    <div class="settings-label">${t('setting_bar_pos')}</div>
                     <div class="settings-switch-box">
-                        <div class="settings-value-text" style="color: ${inactiveColor};">${appSettings.barPos === 'center' ? 'Center' : 'Left'}</div>
+                        <div class="settings-value-text" style="color: ${inactiveColor};">${appSettings.barPos === 'center' ? t('center') : t('left')}</div>
                         <div class="switch-track ${appSettings.barPos === 'center' ? 'active' : ''}">
                             <div class="switch-knob"></div>
                         </div>
@@ -753,7 +857,7 @@ function showSettingsScreen() {
                 </div>
 
                 <div class="settings-item ${(!inMenu && settingsRow === 1) ? 'focused' : ''}">
-                    <div class="settings-label">Dark Theme</div>
+                    <div class="settings-label">${t('setting_theme')}</div>
                     <div class="settings-switch-box">
                         <div class="switch-track ${appSettings.theme === 'dark' ? 'active' : ''}">
                             <div class="switch-knob"></div>
@@ -762,7 +866,7 @@ function showSettingsScreen() {
                 </div>
 
                 <div class="settings-item ${(!inMenu && settingsRow === 2) ? 'focused' : ''}">
-                    <div class="settings-label">Notifications</div>
+                    <div class="settings-label">${t('setting_notifications')}</div>
                     <div class="settings-switch-box">
                         <div class="switch-track ${appSettings.notifications ? 'active' : ''}">
                             <div class="switch-knob"></div>
@@ -775,7 +879,7 @@ function showSettingsScreen() {
         contentHtml = `
             <div class="settings-container">
                 <div class="settings-item ${(!inMenu && settingsRow === 0) ? 'focused' : ''}">
-                    <div class="settings-label">Performance Mode</div>
+                    <div class="settings-label">${t('setting_perf')}</div>
                     <div class="settings-switch-box">
                         <div class="switch-track ${appSettings.performanceMode ? 'active' : ''}">
                             <div class="switch-knob"></div>
@@ -784,7 +888,7 @@ function showSettingsScreen() {
                 </div>
 
                 <div class="settings-item ${(!inMenu && settingsRow === 1) ? 'focused' : ''}">
-                    <div class="settings-label">Ad Block (Proxy)</div>
+                    <div class="settings-label">${t('setting_adblock')}</div>
                     <div class="settings-switch-box">
                         <div class="switch-track ${appSettings.adBlock ? 'active' : ''}">
                             <div class="switch-knob"></div>
@@ -793,7 +897,7 @@ function showSettingsScreen() {
                 </div>
 
                 <div class="settings-item ${(!inMenu && settingsRow === 2) ? 'focused' : ''}">
-                    <div class="settings-label">Language</div>
+                    <div class="settings-label">${t('setting_lang')}</div>
                     <div class="settings-switch-box">
                         <div class="settings-value-text" style="color: ${inactiveColor};">${appSettings.language}</div>
                         <div style="color: #bf94ff; font-size: 30px; font-weight: bold;">⇅</div>
@@ -802,15 +906,15 @@ function showSettingsScreen() {
 
                 <!-- Twitch Status (Not focusable) -->
                 <div class="settings-item" style="cursor: default; border-color: transparent;">
-                    <div class="settings-label">Twitch Status</div>
+                    <div class="settings-label">${t('setting_status')}</div>
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <div style="width: 12px; height: 12px; border-radius: 50%; background: ${twitchStatus.color || '#44ff44'}; box-shadow: 0 0 10px ${twitchStatus.color || '#44ff44'};"></div>
-                        <div style="color: ${textColor}; font-weight: bold; font-size: 18px; text-transform: uppercase; opacity: 0.8;">${twitchStatus.text || 'All Systems Operational'}</div>
+                        <div style="color: ${textColor}; font-weight: bold; font-size: 18px; text-transform: uppercase; opacity: 0.8;">${twitchStatus.text || t('status_ok')}</div>
                     </div>
                 </div>
 
                 <div class="settings-item ${(!inMenu && settingsRow === 3) ? 'focused' : ''}" style="border-color: ${(!inMenu && settingsRow === 3) ? '#ff4f4f' : 'transparent'}; background: ${(!inMenu && settingsRow === 3) ? 'rgba(255,79,79,0.1)' : 'rgba(255, 255, 255, 0.05)'};">
-                    <div class="settings-label" style="color: #ff4f4f;">Remove Account from List</div>
+                    <div class="settings-label" style="color: #ff4f4f;">${t('setting_remove')}</div>
                 </div>
             </div>`;
     }
@@ -843,10 +947,10 @@ function showSettingsScreen() {
             <!-- Tabs Menu -->
             <div style="display:flex; justify-content:center; width:80%; max-width:800px; border-bottom: 2px solid ${borderColor}; margin-bottom: 60px;">
                 <div style="${getTabStyle(0)}">
-                    ${appIcon} Appearance
+                    ${appIcon} ${t('tab_appearance')}
                 </div>
                 <div style="${getTabStyle(1)}">
-                    ${sysIcon} System
+                    ${sysIcon} ${t('tab_system')}
                 </div>
             </div>
 
@@ -964,7 +1068,7 @@ async function showProfileScreen() {
 
     let html = `
         <div class="full-page-screen" style="display:flex; flex-direction:column; align-items:center; justify-content:center;">
-            <h1 style="color:${textColor}; font-size:52px; margin-bottom: 60px; font-weight:bold;">Accounts</h1>
+            <h1 style="color:${textColor}; font-size:52px; margin-bottom: 60px; font-weight:bold;">${t('accounts_title')}</h1>
             <div class="profiles-grid" style="display:flex; justify-content:center; align-items:center; gap:60px; flex-wrap:wrap; margin-bottom: 60px;">`;
 
     allProfiles.forEach((p, index) => {
@@ -984,7 +1088,7 @@ async function showProfileScreen() {
     html += `
         <div class="profile-item add-profile ${isAddSelected ? 'focused' : ''}" id="profile-card-add" style="text-align:center; width:200px; transition: transform 0.3s ease;">
             <div style="width:170px; height:170px; border-radius:50%; background: ${isAddSelected ? 'rgba(191, 148, 255, 0.2)' : 'rgba(191, 148, 255, 0.05)'}; border: 5px dashed #bf94ff; margin: 0 auto 20px; display:flex; align-items:center; justify-content:center; font-size:70px; color:#bf94ff; box-shadow: ${isAddSelected ? '0 0 30px #bf94ff' : 'none'}; transition: all 0.3s ease;">+</div>
-            <div style="color:${textColor}; font-size:24px; font-weight:bold; opacity: ${isAddSelected ? '1' : '0.8'};">Add Account</div>
+            <div style="color:${textColor}; font-size:24px; font-weight:bold; opacity: ${isAddSelected ? '1' : '0.8'};">${t('add_account')}</div>
         </div>
     </div>`;
 
@@ -1187,9 +1291,15 @@ function updateNav() {
         indicator.style.width = active.offsetWidth + 'px';
         indicator.style.left = active.offsetLeft + 'px';
     }
-    menuItems.forEach((m, i) => m.classList.toggle('active-text', i === currentFocusIndex));
+    menuItems.forEach((m, i) => {
+        m.classList.toggle('active-text', i === currentFocusIndex);
+        if (m.id === 'menu-home') m.innerText = t('menu_home');
+        if (m.id === 'menu-follow') m.innerText = t('menu_follow');
+        if (m.id === 'menu-settings') m.innerText = t('menu_settings');
+    });
 
     if (searchDropdown && searchInput) {
+        searchInput.placeholder = t('search_placeholder');
         const isOnLens = active && active.id === 'menu-search' && inMenu;
         if (isSearchInputFocused || isOnLens) {
             searchDropdown.classList.add('search-open');
@@ -1295,13 +1405,13 @@ async function executeSearch(query) {
         const limit = appSettings.performanceMode ? 3 : 6;
 
         if (liveStreams.length > 0) {
-            searchDataRows.push({ title: 'Canali Live', type: 'live', data: liveStreams.slice(0, limit) });
+            searchDataRows.push({ title: t('search_live'), type: 'live', data: liveStreams.slice(0, limit) });
         }
         if (popularCategories.length > 0) {
-            searchDataRows.push({ title: 'Categorie', type: 'category', data: popularCategories.slice(0, limit) });
+            searchDataRows.push({ title: t('search_categories'), type: 'category', data: popularCategories.slice(0, limit) });
         }
         if (allChannels.length > 0) {
-            searchDataRows.push({ title: 'Canali', type: 'channel', data: allChannels.slice(0, limit) });
+            searchDataRows.push({ title: t('channels'), type: 'channel', data: allChannels.slice(0, limit) });
         }
 
         if (searchDataRows.length === 0) {
@@ -1698,11 +1808,11 @@ function renderCategoryView() {
                 <img src="${boxThumb}" style="width:150px; height:200px; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.8); object-fit:contain; background-color:#1a1a20;">
                 <div style="padding-bottom:5px; ${isLight ? '' : 'text-shadow: 0 4px 10px rgba(0,0,0,0.8);'} flex: 1;">
                     <h1 style="color:${titleColor}; font-size:48px; margin:0 0 8px 0; font-weight:bold;">${currentCategoryData.name}</h1>
-                    <div style="color:#bf94ff; font-size:22px; font-weight:600;">${viewers} spettatori</div>
+                    <div style="color:#bf94ff; font-size:22px; font-weight:600;">${viewers} ${t('viewers')}</div>
                 </div>
                 <div style="display:flex; gap:30px; padding-bottom:10px; align-items:center;">
                     <div style="display:flex; flex-direction:column; gap:5px;">
-                        <span style="color:${isLight ? '#555' : '#adadb8'}; font-size:12px; font-weight:bold; text-transform:uppercase;">Streams</span>
+                        <span style="color:${isLight ? '#555' : '#adadb8'}; font-size:12px; font-weight:bold; text-transform:uppercase;">${t('streams')}</span>
                         <div style="display:flex; gap:10px;">
                             <div class="filter-btn ${categoryFilters.it ? 'active' : ''} ${categoryActiveRow === -1 && categoryFilterIdx === 0 ? 'focused' : ''}">ITA</div>
                             <div class="filter-btn ${categoryFilters.en ? 'active' : ''} ${categoryActiveRow === -1 && categoryFilterIdx === 1 ? 'focused' : ''}">ENG</div>
@@ -1710,10 +1820,10 @@ function renderCategoryView() {
                     </div>
                     <div style="width:1px; height:40px; background:${isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.2)'};"></div>
                     <div style="display:flex; flex-direction:column; gap:5px;">
-                        <span style="color:${isLight ? '#555' : '#adadb8'}; font-size:12px; font-weight:bold; text-transform:uppercase;">Clips</span>
+                        <span style="color:${isLight ? '#555' : '#adadb8'}; font-size:12px; font-weight:bold; text-transform:uppercase;">${t('clips')}</span>
                         <div style="display:flex; gap:10px;">
-                            <div class="filter-btn ${clipPeriod === '7d' ? 'active' : ''} ${categoryActiveRow === -1 && categoryFilterIdx === 2 ? 'focused' : ''}">7 Giorni</div>
-                            <div class="filter-btn ${clipPeriod === '30d' ? 'active' : ''} ${categoryActiveRow === -1 && categoryFilterIdx === 3 ? 'focused' : ''}">30 Giorni</div>
+                            <div class="filter-btn ${clipPeriod === '7d' ? 'active' : ''} ${categoryActiveRow === -1 && categoryFilterIdx === 2 ? 'focused' : ''}">${t('days_7')}</div>
+                            <div class="filter-btn ${clipPeriod === '30d' ? 'active' : ''} ${categoryActiveRow === -1 && categoryFilterIdx === 3 ? 'focused' : ''}">${t('days_30')}</div>
                         </div>
                     </div>
                 </div>
@@ -2719,7 +2829,15 @@ function hideExitMenu() {
 function updateExitMenuFocus() {
     const btnCancel = document.getElementById('btn-exit-cancel');
     const btnConfirm = document.getElementById('btn-exit-confirm');
+    const exitTitle = document.querySelector('.exit-title');
 
-    if (btnCancel) btnCancel.classList.toggle('focused', exitMenuFocusIdx === 0);
-    if (btnConfirm) btnConfirm.classList.toggle('focused', exitMenuFocusIdx === 1);
+    if (exitTitle) exitTitle.innerText = t('exit_title');
+    if (btnCancel) {
+        btnCancel.innerText = t('exit_cancel');
+        btnCancel.classList.toggle('focused', exitMenuFocusIdx === 0);
+    }
+    if (btnConfirm) {
+        btnConfirm.innerText = t('exit_confirm');
+        btnConfirm.classList.toggle('focused', exitMenuFocusIdx === 1);
+    }
 }
