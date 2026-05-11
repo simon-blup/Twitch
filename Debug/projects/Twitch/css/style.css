@@ -432,47 +432,119 @@ body.theme-light .live-avatars-bar {
     z-index: 5;
 }
 
-/* --- SETTINGS --- */
-.settings-btn {
-    padding: 22px 45px;
-    background-color: #1f1f23;
-    color: white;
-    border-radius: 60px;
-    font-size: 22px;
-    border: 4px solid transparent;
-    transition: all 0.3s ease;
-    min-width: 250px;
-    text-align: center;
+/* --- SETTINGS REDESIGN --- */
+.settings-container {
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    width: 100%;
+    align-items: center;
 }
 
-body.theme-light .settings-btn {
-    background-color: #e5e5e5;
+.settings-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 30px 45px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 24px;
+    width: 80%;
+    max-width: 850px;
+    border: 4px solid transparent;
+    transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+    box-sizing: border-box;
+}
+
+body.theme-light .settings-item {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+.settings-item.focused {
+    border-color: #bf94ff;
+    background-color: rgba(191, 148, 255, 0.1);
+    transform: scale(1.03);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.4);
+}
+
+body.theme-light .settings-item.focused {
+    background-color: #ffffff;
+    box-shadow: 0 10px 30px rgba(145, 70, 255, 0.15);
+}
+
+.settings-label-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.settings-label {
+    font-size: 28px;
+    font-weight: 600;
+    color: white;
+}
+
+body.theme-light .settings-label {
     color: #0e0e10;
 }
 
-body.theme-light .settings-btn.focused {
-    background-color: #ffffff;
-    color: #9146FF;
-    border-color: #9146FF;
-    box-shadow: 0 0 25px rgba(145, 70, 255, 0.4);
+.settings-desc {
+    font-size: 18px;
+    color: #adadb8;
 }
 
-body.theme-light .settings-btn.active-setting {
-    background-color: #9146FF;
-    color: white;
+body.theme-light .settings-desc {
+    color: #555;
 }
 
-.settings-btn.focused {
-    border-color: #bf94ff;
-    transform: scale(1.1);
+/* Switch Styles */
+.settings-switch-box {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.settings-value-text {
+    font-size: 20px;
+    font-weight: bold;
+    color: #bf94ff;
+    min-width: 100px;
+    text-align: right;
+    text-transform: uppercase;
+}
+
+.switch-track {
+    width: 90px;
+    height: 46px;
     background-color: #3a3a40;
-    box-shadow: 0 0 25px rgba(145, 70, 255, 0.5);
+    border-radius: 46px;
+    position: relative;
+    transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-.settings-btn.active-setting {
-    background-color: #9146FF;
-    color: white;
+body.theme-light .switch-track {
+    background-color: #d1d1d1;
 }
+
+.switch-track.active {
+    background-color: #9146ff;
+}
+
+.switch-knob {
+    width: 36px;
+    height: 36px;
+    background-color: white;
+    border-radius: 50%;
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+}
+
+.switch-track.active .switch-knob {
+    left: 49px;
+}
+
 
 .login-btn {
     padding: 22px 45px;

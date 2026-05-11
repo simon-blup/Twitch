@@ -65,10 +65,11 @@ let originalHeroCount = 0; // Per gestire il loop infinito della prima riga
 // Per gestire i Settings
 let settingsRow = 0;
 let settingsTab = 0; // 0: Appearance, 1: System
-let settingsCol = [0, 0, 0, 0, 0];
+
 
 // Navigation Race Condition & Animation Lock
 let currentNavSequence = 0;
+let twitchStatus = { text: 'Operational', color: '#44ff44' };
 let isAnimating = false;
 let animLockTimeout = null;
 
@@ -131,11 +132,10 @@ window.onload = async function () {
             }
         }
     }
-
-    updateNav();
-
-    // Carica il contenuto solo se abbiamo un token, altrimenti showProfileScreen verrà chiamato da updateNav/loadContent
+    
     await loadContent();
+    updateNav();
+    fetchTwitchStatus();
 
     // Hide splash screen smoothly
     const splash = document.getElementById('splash-screen');
@@ -368,13 +368,6 @@ async function loadContent() {
     } else if (selectedId === 'menu-settings') {
         settingsRow = -1; // -1 indicates focus is on the tabs
         settingsTab = 0;
-        settingsCol = [
-            appSettings.barPos === 'center' ? 0 : 1,
-            appSettings.theme === 'dark' ? 0 : 1,
-            appSettings.performanceMode ? 0 : 1,
-            appSettings.notifications ? 0 : 1,
-            appSettings.adBlock ? 0 : 1
-        ];
         if (mySeq === currentNavSequence) showSettingsScreen();
     } else if (selectedId === 'menu-profile') {
         if (mySeq === currentNavSequence) await showProfileScreen();
@@ -747,42 +740,68 @@ function showSettingsScreen() {
     if (settingsTab === 0) {
         // Appearance Tab
         contentHtml = `
-            <div>
-                <h3 style="color:${textColor}; margin-bottom:15px; text-align:center; font-size: 20px;">Bar Position</h3>
-                <div style="display:flex; justify-content:center; gap:30px;">
-                    <div class="settings-btn ${(!inMenu && settingsRow === 0 && settingsCol[0] === 0) ? 'focused' : ''} ${appSettings.barPos === 'center' ? 'active-setting' : ''}">Top Center</div>
-                    <div class="settings-btn ${(!inMenu && settingsRow === 0 && settingsCol[0] === 1) ? 'focused' : ''} ${appSettings.barPos === 'left' ? 'active-setting' : ''}">Top Left</div>
+            <div class="settings-container">
+                <div class="settings-item ${(!inMenu && settingsRow === 0) ? 'focused' : ''}">
+                    <div class="settings-label">Bar Position</div>
+                    <div class="settings-switch-box">
+                        <div class="settings-value-text" style="color: ${inactiveColor};">${appSettings.barPos === 'center' ? 'Center' : 'Left'}</div>
+                        <div class="switch-track ${appSettings.barPos === 'center' ? 'active' : ''}">
+                            <div class="switch-knob"></div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div>
-                <h3 style="color:${textColor}; margin-bottom:15px; text-align:center; font-size: 20px;">Theme</h3>
-                <div style="display:flex; justify-content:center; gap:30px;">
-                    <div class="settings-btn ${(!inMenu && settingsRow === 1 && settingsCol[1] === 0) ? 'focused' : ''} ${appSettings.theme === 'dark' ? 'active-setting' : ''}">Dark</div>
-                    <div class="settings-btn ${(!inMenu && settingsRow === 1 && settingsCol[1] === 1) ? 'focused' : ''} ${appSettings.theme === 'light' ? 'active-setting' : ''}">Light</div>
+
+                <div class="settings-item ${(!inMenu && settingsRow === 1) ? 'focused' : ''}">
+                    <div class="settings-label">Dark Theme</div>
+                    <div class="settings-switch-box">
+                        <div class="switch-track ${appSettings.theme === 'dark' ? 'active' : ''}">
+                            <div class="switch-knob"></div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div>
-                <h3 style="color:${textColor}; margin-bottom:15px; text-align:center; font-size: 20px;">Notifications</h3>
-                <div style="display:flex; justify-content:center; gap:30px;">
-                    <div class="settings-btn ${(!inMenu && settingsRow === 2 && settingsCol[2] === 0) ? 'focused' : ''} ${appSettings.notifications ? 'active-setting' : ''}">Enabled</div>
-                    <div class="settings-btn ${(!inMenu && settingsRow === 2 && settingsCol[2] === 1) ? 'focused' : ''} ${!appSettings.notifications ? 'active-setting' : ''}">Disabled</div>
+
+                <div class="settings-item ${(!inMenu && settingsRow === 2) ? 'focused' : ''}">
+                    <div class="settings-label">Notifications</div>
+                    <div class="settings-switch-box">
+                        <div class="switch-track ${appSettings.notifications ? 'active' : ''}">
+                            <div class="switch-knob"></div>
+                        </div>
+                    </div>
                 </div>
             </div>`;
     } else {
         // System Tab
         contentHtml = `
-            <div>
-                <h3 style="color:${textColor}; margin-bottom:15px; text-align:center; font-size: 20px;">Performance Mode</h3>
-                <div style="display:flex; justify-content:center; gap:30px;">
-                    <div class="settings-btn ${(!inMenu && settingsRow === 0 && settingsCol[3] === 0) ? 'focused' : ''} ${appSettings.performanceMode ? 'active-setting' : ''}">On</div>
-                    <div class="settings-btn ${(!inMenu && settingsRow === 0 && settingsCol[3] === 1) ? 'focused' : ''} ${!appSettings.performanceMode ? 'active-setting' : ''}">Off</div>
+            <div class="settings-container">
+                <div class="settings-item ${(!inMenu && settingsRow === 0) ? 'focused' : ''}">
+                    <div class="settings-label">Performance Mode</div>
+                    <div class="settings-switch-box">
+                        <div class="switch-track ${appSettings.performanceMode ? 'active' : ''}">
+                            <div class="switch-knob"></div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-            <div>
-                <h3 style="color:${textColor}; margin-bottom:15px; text-align:center; font-size: 20px;">Ad Block (Proxy)</h3>
-                <div style="display:flex; justify-content:center; gap:30px;">
-                    <div class="settings-btn ${(!inMenu && settingsRow === 1 && settingsCol[4] === 0) ? 'focused' : ''} ${appSettings.adBlock ? 'active-setting' : ''}">Enabled</div>
-                    <div class="settings-btn ${(!inMenu && settingsRow === 1 && settingsCol[4] === 1) ? 'focused' : ''} ${!appSettings.adBlock ? 'active-setting' : ''}">Disabled</div>
+
+                <div class="settings-item ${(!inMenu && settingsRow === 1) ? 'focused' : ''}">
+                    <div class="settings-label">Ad Block (Proxy)</div>
+                    <div class="settings-switch-box">
+                        <div class="switch-track ${appSettings.adBlock ? 'active' : ''}">
+                            <div class="switch-knob"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Twitch Status (Not focusable) -->
+                <div class="settings-item" style="cursor: default; opacity: 0.9; background: rgba(255,255,255,0.02); border-color: transparent;">
+                    <div class="settings-label">Twitch Status</div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div style="width: 12px; height: 12px; border-radius: 50%; background: ${twitchStatus.color || '#44ff44'}; box-shadow: 0 0 10px ${twitchStatus.color || '#44ff44'};"></div>
+                        <div style="color: ${textColor}; font-weight: bold; font-size: 18px; text-transform: uppercase; opacity: 0.8;">${twitchStatus.text || 'All Systems Operational'}</div>
+                    </div>
+                </div>
+
+                <div class="settings-item ${(!inMenu && settingsRow === 2) ? 'focused' : ''}" style="border-color: ${(!inMenu && settingsRow === 2) ? '#ff4f4f' : 'transparent'}; background: ${(!inMenu && settingsRow === 2) ? 'rgba(255,79,79,0.1)' : 'rgba(255, 255, 255, 0.05)'};">
+                    <div class="settings-label" style="color: #ff4f4f;">Remove Account from List</div>
                 </div>
             </div>`;
     }
@@ -828,6 +847,31 @@ function showSettingsScreen() {
             </div>
 
         </div>`;
+}
+
+async function fetchTwitchStatus() {
+    try {
+        const res = await fetch('https://status.twitch.tv/api/v2/summary.json');
+        const data = await res.json();
+        if (data && data.status) {
+            const indicator = data.status.indicator; // none, minor, major, critical
+            let color = '#44ff44'; // green
+            let text = data.status.description || 'All Systems Operational';
+            
+            if (indicator === 'minor') { color = '#ffcc00'; }
+            else if (indicator === 'major') { color = '#ff9900'; }
+            else if (indicator === 'critical') { color = '#ff4f4f'; }
+            
+            twitchStatus = { text, color };
+            // If settings screen is open, refresh it
+            const menuItems = document.querySelectorAll('.menu-item');
+            if (menuItems[currentFocusIndex] && menuItems[currentFocusIndex].id === 'menu-settings') {
+                showSettingsScreen();
+            }
+        }
+    } catch (e) {
+        console.warn("Failed to fetch Twitch Status:", e);
+    }
 }
 
 let profileActiveCol = 0;
@@ -933,11 +977,6 @@ async function showProfileScreen() {
             <div style="width:170px; height:170px; border-radius:50%; background: ${isAddSelected ? 'rgba(191, 148, 255, 0.2)' : 'rgba(191, 148, 255, 0.05)'}; border: 5px dashed #bf94ff; margin: 0 auto 20px; display:flex; align-items:center; justify-content:center; font-size:70px; color:#bf94ff; box-shadow: ${isAddSelected ? '0 0 30px #bf94ff' : 'none'}; transition: all 0.3s ease;">+</div>
             <div style="color:${textColor}; font-size:24px; font-weight:bold; opacity: ${isAddSelected ? '1' : '0.8'};">Add Account</div>
         </div>
-    </div>`;
-
-    const isLogoutSelected = !inMenu && profileRow === 1;
-    html += `
-        <div class="logout-btn ${isLogoutSelected ? 'focused' : ''}" style="margin-top: 40px; padding: 15px 40px; border: 3px solid #ff4f4f; color: #ff4f4f; background: ${isLogoutSelected ? 'rgba(255,79,79,0.1)' : 'transparent'}; font-weight:bold; border-radius:50px; font-size:22px; transition: all 0.3s ease;">REMOVE ACCOUNT</div>
     </div>`;
 
     viewArea.innerHTML = html;
@@ -1060,6 +1099,11 @@ async function removeActiveProfile() {
     // Reset notifications on removal too
     isFirstCheck = true;
     lastLiveStreamIds = new Set();
+ 
+    if (allProfiles.length === 0) {
+        currentFocusIndex = 4;
+        inMenu = false;
+    }
 
     await loadContent();
     updateNav();
@@ -2326,24 +2370,26 @@ function handleKeydown(e) {
                 else if (e.keyCode === 38) { inMenu = true; updateNav(); showSettingsScreen(); }
             } else {
                 // Focus is on Settings items
-                let maxRow = settingsTab === 0 ? 2 : 1;
-                let actualColIndex = settingsTab === 0 ? settingsRow : settingsRow + 3;
+                let maxRow = settingsTab === 0 ? 2 : 2;
 
-                if (e.keyCode === 39 && settingsCol[actualColIndex] < 1) { settingsCol[actualColIndex]++; showSettingsScreen(); }
-                else if (e.keyCode === 37 && settingsCol[actualColIndex] > 0) { settingsCol[actualColIndex]--; showSettingsScreen(); }
-                else if (e.keyCode === 40 && settingsRow < maxRow) { settingsRow++; showSettingsScreen(); }
+                if (e.keyCode === 40 && settingsRow < maxRow) { settingsRow++; showSettingsScreen(); }
                 else if (e.keyCode === 38) { 
                     if (settingsRow > 0) { settingsRow--; showSettingsScreen(); } 
                     else { settingsRow = -1; showSettingsScreen(); } 
                 }
-                else if (e.keyCode === 13) {
+                else if (e.keyCode === 13 || e.keyCode === 37 || e.keyCode === 39) {
+                    // Toggle value on Enter or Left/Right
                     if (settingsTab === 0) {
-                        if (settingsRow === 0) appSettings.barPos = settingsCol[0] === 0 ? 'center' : 'left';
-                        else if (settingsRow === 1) appSettings.theme = settingsCol[1] === 0 ? 'dark' : 'light';
-                        else if (settingsRow === 2) appSettings.notifications = settingsCol[2] === 0;
+                        if (settingsRow === 0) appSettings.barPos = appSettings.barPos === 'center' ? 'left' : 'center';
+                        else if (settingsRow === 1) appSettings.theme = appSettings.theme === 'dark' ? 'light' : 'dark';
+                        else if (settingsRow === 2) appSettings.notifications = !appSettings.notifications;
                     } else {
-                        if (settingsRow === 0) appSettings.performanceMode = settingsCol[3] === 0;
-                        else if (settingsRow === 1) appSettings.adBlock = settingsCol[4] === 0;
+                        if (settingsRow === 0) appSettings.performanceMode = !appSettings.performanceMode;
+                        else if (settingsRow === 1) appSettings.adBlock = !appSettings.adBlock;
+                        else if (settingsRow === 2) {
+                            if (e.keyCode === 13) removeActiveProfile();
+                            return;
+                        }
                     }
                     saveSettings(); showSettingsScreen(); setTimeout(updateNav, 50);
                 }
@@ -2359,8 +2405,6 @@ function handleKeydown(e) {
                     if (profileActiveCol < allProfiles.length) { profileActiveCol++; showProfileScreen(); }
                 } else if (e.keyCode === 37) { // Sinistra
                     if (profileActiveCol > 0) { profileActiveCol--; showProfileScreen(); }
-                } else if (e.keyCode === 40) { // Giù -> Logout
-                    profileRow = 1; showProfileScreen();
                 } else if (e.keyCode === 38) { // Su -> Menu
                     if (userToken) {
                         inMenu = true; updateNav(); showProfileScreen();
@@ -2372,12 +2416,6 @@ function handleKeydown(e) {
                         // Tasto Add Profile (+)
                         startDeviceFlow();
                     }
-                }
-            } else if (profileRow === 1) { // Riga Logout
-                if (e.keyCode === 38) { // Su -> Profili
-                    profileRow = 0; showProfileScreen();
-                } else if (e.keyCode === 13) { // OK
-                    removeActiveProfile();
                 }
             }
         }
