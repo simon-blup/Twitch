@@ -48,9 +48,10 @@ let currentStreamId = "";
 let currentStreamTitle = "";
 
 // Default barPos is 'center'
-let appSettings = JSON.parse(localStorage.getItem('twitch_settings')) || { barPos: 'center', theme: 'dark', performanceMode: false, notifications: true, adBlock: true };
+let appSettings = JSON.parse(localStorage.getItem('twitch_settings')) || { barPos: 'center', theme: 'dark', performanceMode: false, notifications: true, adBlock: true, language: 'English' };
 if (appSettings.notifications === undefined) appSettings.notifications = true;
 if (appSettings.adBlock === undefined) appSettings.adBlock = true;
+if (appSettings.language === undefined) appSettings.language = 'English';
 
 let lastLiveStreamIds = new Set();
 let isFirstCheck = true;
@@ -791,8 +792,16 @@ function showSettingsScreen() {
                     </div>
                 </div>
 
+                <div class="settings-item ${(!inMenu && settingsRow === 2) ? 'focused' : ''}">
+                    <div class="settings-label">Language</div>
+                    <div class="settings-switch-box">
+                        <div class="settings-value-text" style="color: ${inactiveColor};">${appSettings.language}</div>
+                        <div style="color: #bf94ff; font-size: 30px; font-weight: bold;">⇅</div>
+                    </div>
+                </div>
+
                 <!-- Twitch Status (Not focusable) -->
-                <div class="settings-item" style="cursor: default; opacity: 0.9; background: rgba(255,255,255,0.02); border-color: transparent;">
+                <div class="settings-item" style="cursor: default; border-color: transparent;">
                     <div class="settings-label">Twitch Status</div>
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <div style="width: 12px; height: 12px; border-radius: 50%; background: ${twitchStatus.color || '#44ff44'}; box-shadow: 0 0 10px ${twitchStatus.color || '#44ff44'};"></div>
@@ -800,7 +809,7 @@ function showSettingsScreen() {
                     </div>
                 </div>
 
-                <div class="settings-item ${(!inMenu && settingsRow === 2) ? 'focused' : ''}" style="border-color: ${(!inMenu && settingsRow === 2) ? '#ff4f4f' : 'transparent'}; background: ${(!inMenu && settingsRow === 2) ? 'rgba(255,79,79,0.1)' : 'rgba(255, 255, 255, 0.05)'};">
+                <div class="settings-item ${(!inMenu && settingsRow === 3) ? 'focused' : ''}" style="border-color: ${(!inMenu && settingsRow === 3) ? '#ff4f4f' : 'transparent'}; background: ${(!inMenu && settingsRow === 3) ? 'rgba(255,79,79,0.1)' : 'rgba(255, 255, 255, 0.05)'};">
                     <div class="settings-label" style="color: #ff4f4f;">Remove Account from List</div>
                 </div>
             </div>`;
@@ -2370,7 +2379,7 @@ function handleKeydown(e) {
                 else if (e.keyCode === 38) { inMenu = true; updateNav(); showSettingsScreen(); }
             } else {
                 // Focus is on Settings items
-                let maxRow = settingsTab === 0 ? 2 : 2;
+                let maxRow = settingsTab === 0 ? 2 : 3;
 
                 if (e.keyCode === 40 && settingsRow < maxRow) { settingsRow++; showSettingsScreen(); }
                 else if (e.keyCode === 38) { 
@@ -2387,6 +2396,13 @@ function handleKeydown(e) {
                         if (settingsRow === 0) appSettings.performanceMode = !appSettings.performanceMode;
                         else if (settingsRow === 1) appSettings.adBlock = !appSettings.adBlock;
                         else if (settingsRow === 2) {
+                            const langs = ['English', 'Italiano', 'Español', '中文', 'Français'];
+                            let idx = langs.indexOf(appSettings.language);
+                            if (e.keyCode === 37) idx = (idx - 1 + langs.length) % langs.length;
+                            else idx = (idx + 1) % langs.length;
+                            appSettings.language = langs[idx];
+                        }
+                        else if (settingsRow === 3) {
                             if (e.keyCode === 13) removeActiveProfile();
                             return;
                         }
