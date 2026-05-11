@@ -18,7 +18,9 @@ const i18n = {
         feat_content: 'Featured Content', top_cats: 'Top Categories', live_recom: 'Followed Channels',
         followed_channels: 'Followed Channels', center: 'Center', left: 'Left',
         loading: 'Loading...', live_badge: 'LIVE', loading_error: 'Loading error.',
-        channels: 'Channels'
+        channels: 'Channels',
+        setting_avatars: 'Show Followed Avatars',
+        setting_avatars_desc: 'Shows live streamer icons in the followed section. May increase loading time.'
     },
     'Italiano': {
         menu_search: 'Cerca', menu_home: 'Home', menu_follow: 'Seguiti', menu_settings: 'Impostazioni', menu_profile: 'Profilo',
@@ -37,7 +39,9 @@ const i18n = {
         feat_content: 'Contenuti in primo piano', top_cats: 'Categorie Popolari', live_recom: 'Canali Seguiti',
         followed_channels: 'Canali Seguiti', center: 'Centro', left: 'Sinistra',
         loading: 'Caricamento...', live_badge: 'LIVE', loading_error: 'Errore di caricamento.',
-        channels: 'Canali'
+        channels: 'Canali',
+        setting_avatars: 'Mostra Avatar Seguiti',
+        setting_avatars_desc: 'Mostra le icone dei canali live seguiti. Potrebbe allungare il caricamento.'
     },
     'Español': {
         menu_search: 'Buscar', menu_home: 'Inicio', menu_follow: 'Seguidos', menu_settings: 'Ajustes', menu_profile: 'Perfil',
@@ -56,7 +60,9 @@ const i18n = {
         feat_content: 'Contenido destacado', top_cats: 'Categorías principales', live_recom: 'Canales Seguidos',
         followed_channels: 'Canales Seguidos', center: 'Centro', left: 'Izquierda',
         loading: 'Cargando...', live_badge: 'VIVO', loading_error: 'Error de carga.',
-        channels: 'Canales'
+        channels: 'Canales',
+        setting_avatars: 'Mostrar avatares seguidos',
+        setting_avatars_desc: 'Muestra iconos de streamers en vivo. Puede aumentar el tiempo de carga.'
     },
     '中文': {
         menu_search: '搜索', menu_home: '首页', menu_follow: '已关注', menu_settings: '设置', menu_profile: '个人资料',
@@ -75,7 +81,9 @@ const i18n = {
         feat_content: '精选内容', top_cats: '热门类别', live_recom: '已关注的频道',
         followed_channels: '已关注的频道', center: '居中', left: '居左',
         loading: '加载中...', live_badge: '直播', loading_error: '加载错误。',
-        channels: '频道'
+        channels: '频道',
+        setting_avatars: '显示关注的头像',
+        setting_avatars_desc: '显示关注的直播主图标。可能会增加加载时间。'
     },
     'Français': {
         menu_search: 'Rechercher', menu_home: 'Accueil', menu_follow: 'Suivis', menu_settings: 'Paramètres', menu_profile: 'Profil',
@@ -84,7 +92,7 @@ const i18n = {
         setting_perf: 'Mode performance', setting_adblock: 'Bloqueur de pub', setting_lang: 'Langue',
         setting_status: 'État de Twitch', setting_remove: 'Supprimer le compte de la liste',
         status_ok: 'Tous les systèmes sont opérationnels',
-        accounts_title: 'Comptes', add_account: 'Ajouter un compte',
+        accounts_title: 'Comptes', add_account: 'ajouter un compte',
         viewers: 'spectateurs', followers: 'abonnés', streams: 'Streams', clips: 'Clips',
         days_7: '7 Jours', days_30: '30 Jours',
         no_live: 'Aucune chaîne suivie n\'est en direct pour le moment.',
@@ -94,7 +102,9 @@ const i18n = {
         feat_content: 'Contenu vedette', top_cats: 'Meilleures catégories', live_recom: 'Chaînes Suivies',
         followed_channels: 'Chaînes Suivies', center: 'Centre', left: 'Gauche',
         loading: 'Chargement...', live_badge: 'DIRECT', loading_error: 'Erreur de chargement.',
-        channels: 'Chaînes'
+        channels: 'Chaînes',
+        setting_avatars: 'Afficher les avatars suivis',
+        setting_avatars_desc: 'Affiche les icônes des streamers suivis. Peut augmenter le temps de chargement.'
     }
 };
 
@@ -152,10 +162,11 @@ let currentStreamId = "";
 let currentStreamTitle = "";
 
 // Default barPos is 'center'
-let appSettings = JSON.parse(localStorage.getItem('twitch_settings')) || { barPos: 'center', theme: 'dark', performanceMode: false, notifications: true, adBlock: true, language: 'English' };
+let appSettings = JSON.parse(localStorage.getItem('twitch_settings')) || { barPos: 'center', theme: 'dark', performanceMode: false, notifications: true, adBlock: true, language: 'English', showFollowedAvatars: true };
 if (appSettings.notifications === undefined) appSettings.notifications = true;
 if (appSettings.adBlock === undefined) appSettings.adBlock = true;
 if (appSettings.language === undefined) appSettings.language = 'English';
+if (appSettings.showFollowedAvatars === undefined) appSettings.showFollowedAvatars = true;
 
 let lastLiveStreamIds = new Set();
 let isFirstCheck = true;
@@ -724,7 +735,7 @@ function renderFollowScreen() {
             });
             html += `</div>`;
         } else if (row.type === 'avatars') {
-            if (!appSettings.performanceMode) {
+            if (appSettings.showFollowedAvatars) {
                 html += `<div class="live-avatars-bar" id="follow-row-${rowIndex}">`;
                 row.data.forEach((item, colIndex) => {
                     html += `<img src="${item.profile_image_url}" id="follow-card-${rowIndex}-${colIndex}" class="live-avatar-small" />`;
@@ -869,6 +880,15 @@ function showSettingsScreen() {
                     <div class="settings-label">${t('setting_notifications')}</div>
                     <div class="settings-switch-box">
                         <div class="switch-track ${appSettings.notifications ? 'active' : ''}">
+                            <div class="switch-knob"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="settings-item ${(!inMenu && settingsRow === 3) ? 'focused' : ''}">
+                    <div class="settings-label">${t('setting_avatars')}</div>
+                    <div class="settings-switch-box">
+                        <div class="switch-track ${appSettings.showFollowedAvatars ? 'active' : ''}">
                             <div class="switch-knob"></div>
                         </div>
                     </div>
@@ -1067,9 +1087,9 @@ async function showProfileScreen() {
     }
 
     let html = `
-        <div class="full-page-screen" style="display:flex; flex-direction:column; align-items:center; justify-content:center;">
-            <h1 style="color:${textColor}; font-size:52px; margin-bottom: 60px; font-weight:bold;">${t('accounts_title')}</h1>
-            <div class="profiles-grid" style="display:flex; justify-content:center; align-items:center; gap:60px; flex-wrap:wrap; margin-bottom: 60px;">`;
+        <div class="full-page-screen" style="display:flex; flex-direction:column; align-items:center; justify-content:center; position: fixed;">
+            <h1 style="position: absolute; top: 80px; color:${textColor}; font-size:52px; font-weight:bold; margin:0;">${t('accounts_title')}</h1>
+            <div class="profiles-grid" style="display:flex; justify-content:center; align-items:center; gap:60px; flex-wrap:wrap;">`;
 
     allProfiles.forEach((p, index) => {
         const isSelected = !inMenu && profileRow === 0 && profileActiveCol === index;
@@ -1114,7 +1134,7 @@ async function startDeviceFlow() {
         const qrUrl = data.verification_uri || `https://www.twitch.tv/activate?device-code=${data.user_code}`;
         
         viewArea.innerHTML = `
-            <div class="full-page-screen" style="position:relative; width: 100%;">
+            <div class="full-page-screen" style="position:fixed; top:0; left:0; width: 100%; height:100vh;">
                 <div style="position:absolute; left: 0; top: 50%; width: calc(50% - 250px); transform: translateY(-50%); display:flex; justify-content:center; align-items:center;">
                     <div style="background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
                         <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrUrl)}" style="width:300px; height:300px; display:block; object-fit:contain;">
@@ -2489,7 +2509,7 @@ function handleKeydown(e) {
                 else if (e.keyCode === 38) { inMenu = true; updateNav(); showSettingsScreen(); }
             } else {
                 // Focus is on Settings items
-                let maxRow = settingsTab === 0 ? 2 : 3;
+                let maxRow = settingsTab === 0 ? 3 : 3;
 
                 if (e.keyCode === 40 && settingsRow < maxRow) { settingsRow++; showSettingsScreen(); }
                 else if (e.keyCode === 38) { 
@@ -2502,6 +2522,7 @@ function handleKeydown(e) {
                         if (settingsRow === 0) appSettings.barPos = appSettings.barPos === 'center' ? 'left' : 'center';
                         else if (settingsRow === 1) appSettings.theme = appSettings.theme === 'dark' ? 'light' : 'dark';
                         else if (settingsRow === 2) appSettings.notifications = !appSettings.notifications;
+                        else if (settingsRow === 3) appSettings.showFollowedAvatars = !appSettings.showFollowedAvatars;
                     } else {
                         if (settingsRow === 0) appSettings.performanceMode = !appSettings.performanceMode;
                         else if (settingsRow === 1) appSettings.adBlock = !appSettings.adBlock;
