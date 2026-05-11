@@ -908,13 +908,19 @@ async function startDeviceFlow() {
         });
         const data = await resp.json();
         const textColor = document.body.classList.contains('theme-light') ? '#000' : 'white';
+        const qrUrl = data.verification_uri || `https://www.twitch.tv/activate?device-code=${data.user_code}`;
         
         viewArea.innerHTML = `
-            <div class="full-page-screen" style="display:flex; align-items:center; justify-content:center;">
-                <div class="activation-box" style="text-align:center;">
-                    <h1 style="color:#bf94ff; font-size:42px; margin-bottom: 10px; font-weight:bold;">twitch.tv/activate</h1>
-                    <div style="color:${textColor}; font-size:85px; font-weight:bold; margin:20px 0; letter-spacing:15px;">${data.user_code}</div>
-                    ${allProfiles.length > 0 ? `<div style="color:#adadb8; font-size:20px; margin-top:20px; font-weight:normal;">Press BACK to cancel</div>` : ''}
+            <div class="full-page-screen" style="position:relative; width: 100%;">
+                <div style="position:absolute; left: 0; top: 50%; width: calc(50% - 250px); transform: translateY(-50%); display:flex; justify-content:center; align-items:center;">
+                    <div style="background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.5);">
+                        <img src="https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrUrl)}" style="width:300px; height:300px; display:block; object-fit:contain;">
+                    </div>
+                </div>
+                <div class="activation-box" style="position:absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); text-align:center; padding: 25px 40px; min-width: auto;">
+                    <h1 style="color:#bf94ff; font-size:38px; margin-bottom: 10px; font-weight:bold;">twitch.tv/activate</h1>
+                    <div style="color:${textColor}; font-size:70px; font-weight:bold; margin:20px 0; letter-spacing:12px;">${data.user_code}</div>
+                    ${allProfiles.length > 0 ? `<div style="color:#adadb8; font-size:18px; margin-top:15px; font-weight:normal;">Press BACK to cancel</div>` : ''}
                 </div>
             </div>`;
             
