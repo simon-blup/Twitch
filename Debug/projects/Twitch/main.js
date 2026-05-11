@@ -168,6 +168,41 @@ if (appSettings.adBlock === undefined) appSettings.adBlock = true;
 if (appSettings.language === undefined) appSettings.language = 'English';
 if (appSettings.showFollowedAvatars === undefined) appSettings.showFollowedAvatars = true;
 
+// --- OTTIMIZZAZIONE: Cache API con TTL ---
+// Evita fetch ridondanti quando si naviga tra le tab. I dati sono serviti dalla RAM istantaneamente.
+const apiCache = {
+    _store: {},
+    set(key, data, ttlSeconds) {
+        this._store[key] = { data: data, expires: Date.now() + (ttlSeconds * 1000) };
+    },
+    get(key) {
+        const entry = this._store[key];
+        if (!entry) return null;
+        if (Date.now() > entry.expires) { delete this._store[key]; return null; }
+        return entry.data;
+    },
+    invalidate(key) { delete this._store[key]; },
+    invalidateAll() { this._store = {}; }
+};
+
+// --- OTTIMIZZAZIONE: Pulizia fisica del DOM ---
+// Rilascia le immagini dalla memoria e distrugge i nodi prima di cambiare vista.
+function purgeViewArea() {
+    const viewArea = document.getElementById('main-view-area');
+    if (!viewArea) return;
+    // Rilascia blob immagini dalla memoria del browser
+    const imgs = viewArea.querySelectorAll('img');
+    for (let i = 0; i < imgs.length; i++) {
+        imgs[i].removeAttribute('src');
+        imgs[i].removeAttribute('srcset');
+    }
+    // Distruzione fisica di tutti i nodi figli
+    viewArea.innerHTML = '';
+}
+
+// --- OTTIMIZZAZIONE: Stato pre-player per restore istantaneo ---
+let prePlayerState = null;
+
 let lastLiveStreamIds = new Set();
 let isFirstCheck = true;
 
@@ -456,6 +491,9 @@ async function loadContent() {
     currentNavSequence++;
     const mySeq = currentNavSequence;
 
+    // OTTIMIZZAZIONE: Pulizia fisica del DOM prima di cambiare vista
+    purgeViewArea();
+
     if (viewArea) viewArea.innerHTML = `<div style="text-align:center; padding-top:100px; color:white;">${t('loading')}</div>`;
 
     if (selectedId === 'menu-search') {
@@ -495,6 +533,21 @@ async function loadContent() {
 
 async function getTwitchHome(seqId) {
     homeDataRows = [];
+
+    // OTTIMIZZAZIONE: Controlla se abbiamo dati in cache (TTL 60s)
+    const cached = apiCache.get('home_data');
+    if (cached) {
+        homeDataRows = cached.rows;
+        originalHeroCount = cached.heroCount;
+        colIndices = new Array(homeDataRows.length).fill(0);
+        if (homeDataRows[0] && homeDataRows[0].isHero) {
+            colIndices[0] = originalHeroCount;
+        }
+        if (seqId !== currentNavSequence) return;
+        renderHome();
+        return;
+    }
+
     try {
         // 1. Recommended (Hero)
         const recRes = await twitchFetch('https://api.twitch.tv/helix/streams?first=10');
@@ -525,6 +578,9 @@ async function getTwitchHome(seqId) {
         }
 
         if (seqId !== currentNavSequence) return; // Prevent race conditions
+
+        // OTTIMIZZAZIONE: Salva in cache per 60 secondi
+        apiCache.set('home_data', { rows: homeDataRows, heroCount: originalHeroCount }, 60);
 
         colIndices = new Array(homeDataRows.length).fill(0);
         if (homeDataRows[0] && homeDataRows[0].isHero) {
@@ -565,6 +621,9 @@ function renderHome() {
         const rowDiv = document.getElementById(`row-${rowIndex}`);
         if (!rowDiv) return;
 
+        // OTTIMIZZAZIONE: DocumentFragment per iniettare tutte le card in un singolo reflow
+        const fragment = document.createDocumentFragment();
+
         if (row.type === 'category') {
             row.data.forEach((item) => {
                 const card = document.createElement('div');
@@ -574,7 +633,7 @@ function renderHome() {
                 card.innerHTML = `
                     <img src="${thumb}" loading="lazy" onerror="this.src='icon.png'" style="width:100%; height:100%; object-fit:cover;">
                     <div class="card-info"><div style="font-size:20px; font-weight:bold; color:white;">${item.name}</div></div>`;
-                rowDiv.appendChild(card);
+                fragment.appendChild(card);
             });
         } else if (row.type === 'stream') {
             row.data.forEach((item) => {
@@ -590,9 +649,12 @@ function renderHome() {
                         <div style="font-size:${row.isHero ? '28' : '22'}px; font-weight:bold; color:white;">${item.user_name}</div>
                         <div style="font-size:${row.isHero ? '18' : '16'}px; color:#adadb8; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.title}</div>
                     </div>`;
-                rowDiv.appendChild(card);
+                fragment.appendChild(card);
             });
         }
+
+        // Singola operazione DOM: inietta tutto il fragment
+        rowDiv.appendChild(fragment);
     });
     homeDataRows.forEach((row, rowIndex) => {
         const rowDiv = document.getElementById(`row-${rowIndex}`);
@@ -677,6 +739,17 @@ async function getFollowData(seqId) {
     if (!userToken) {
         return;
     }
+
+    // OTTIMIZZAZIONE: Controlla cache (TTL 30s)
+    const cached = apiCache.get('follow_data');
+    if (cached) {
+        followDataRows = cached.rows;
+        window.followLiveUsers = cached.liveUsers;
+        if (seqId !== undefined && seqId !== currentNavSequence) return;
+        renderFollowScreen();
+        return;
+    }
+
     try {
         const folRes = await twitchFetch(`https://api.twitch.tv/helix/streams/followed?user_id=${userId}&first=100`);
         let streams = folRes.data || [];
@@ -702,6 +775,9 @@ async function getFollowData(seqId) {
         if (liveUsers.length > 0) {
             followDataRows.push({ type: "avatars", data: liveUsers });
         }
+
+        // OTTIMIZZAZIONE: Salva in cache per 30 secondi
+        apiCache.set('follow_data', { rows: followDataRows, liveUsers: liveUsers }, 30);
 
         if (seqId !== undefined && seqId !== currentNavSequence) return;
         renderFollowScreen();
@@ -1162,6 +1238,8 @@ async function startDeviceFlow() {
 async function switchProfile(index) {
     const profile = allProfiles[index];
     if (profile) {
+        // OTTIMIZZAZIONE: Invalida la cache dati quando si cambia profilo
+        apiCache.invalidateAll();
         isProfileSelectionOnStartup = false;
         activeProfileId = profile.id;
         localStorage.setItem('active_profile_id', activeProfileId);
@@ -1868,6 +1946,9 @@ function renderCategoryView() {
         const rowDiv = document.getElementById(`cat-row-${rowIndex}`);
         if (!rowDiv) return;
 
+        // OTTIMIZZAZIONE: DocumentFragment per batch injection
+        const fragment = document.createDocumentFragment();
+
         row.data.forEach((item, colIndex) => {
             const card = document.createElement('div');
             card.className = 'channel-card';
@@ -1893,8 +1974,10 @@ function renderCategoryView() {
                         <div style="font-size:16px; color:#adadb8; margin-top:6px;">By ${item.broadcaster_name}</div>
                     </div>`;
             }
-            rowDiv.appendChild(card);
+            fragment.appendChild(card);
         });
+
+        rowDiv.appendChild(fragment);
     });
 
     updateCategorySelection();
@@ -2704,6 +2787,19 @@ async function openNativePlayer(channelName, channelId, streamTitle) {
     inPlayer = true;
     playerFocusIndex = 0; // Reset focus to Play button
 
+    // OTTIMIZZAZIONE: Salva lo stato di navigazione per restore istantaneo al ritorno
+    const menuItems = document.querySelectorAll('.menu-item');
+    prePlayerState = {
+        menuIndex: currentFocusIndex,
+        menuId: menuItems[currentFocusIndex] ? menuItems[currentFocusIndex].id : 'menu-home',
+        wasInMenu: inMenu,
+        wasInCategoryView: inCategoryView,
+        wasInChannelView: inChannelView
+    };
+
+    // OTTIMIZZAZIONE: Pulizia FISICA del DOM - distrugge tutti i nodi per liberare la RAM
+    purgeViewArea();
+
     // Tecniche Ottimizzazione Memoria: "Mondo Vuoto"
     const appContainer = document.getElementById('app-container');
     if (appContainer) appContainer.style.display = 'none';
@@ -2757,11 +2853,20 @@ async function openNativePlayer(channelName, channelId, streamTitle) {
     updatePlayerFocus();
 }
 
+// OTTIMIZZAZIONE: Variabili per il watchdog AVPlay resiliente
+let avplayRetryCount = 0;
+let bufferingWatchdog = null;
+let currentPlayingUrl = '';
+
 function playVideoUrl(url) {
     try {
         webapis.avplay.stop();
         webapis.avplay.close();
     } catch (e) { }
+
+    // Reset watchdog
+    if (bufferingWatchdog) { clearTimeout(bufferingWatchdog); bufferingWatchdog = null; }
+    currentPlayingUrl = url;
 
     try {
         webapis.avplay.open(url);
@@ -2776,15 +2881,32 @@ function playVideoUrl(url) {
         }
 
         var listener = {
-            onbufferingstart: function() { console.log("Buffering start."); },
+            onbufferingstart: function() {
+                console.log("Buffering start.");
+                // OTTIMIZZAZIONE: Watchdog - se il buffering dura >15s, riprova con qualità inferiore
+                if (bufferingWatchdog) clearTimeout(bufferingWatchdog);
+                bufferingWatchdog = setTimeout(function() {
+                    console.warn("Buffering watchdog triggered (>15s). Attempting recovery...");
+                    avplayRecoverWithFallback();
+                }, 15000);
+            },
             onbufferingprogress: function(percent) { console.log("Buffering progress data : " + percent); },
-            onbufferingcomplete: function() { console.log("Buffering complete."); },
+            onbufferingcomplete: function() {
+                console.log("Buffering complete.");
+                // Cancella il watchdog quando il buffering finisce con successo
+                if (bufferingWatchdog) { clearTimeout(bufferingWatchdog); bufferingWatchdog = null; }
+                avplayRetryCount = 0; // Reset retry counter on success
+            },
             onstreamcompleted: function() {
                 console.log("Stream Completed");
                 webapis.avplay.stop();
             },
             oncurrentplaytime: function(currentTime) { },
-            onerror: function(eventType) { console.log("event type error : " + eventType); },
+            onerror: function(eventType) {
+                console.error("AVPlay error: " + eventType);
+                // OTTIMIZZAZIONE: Auto-recovery su errore codec o stream
+                avplayRecoverWithFallback();
+            },
             ondrmevent: function(drmEvent, drmData) { console.log("DRM callback: " + drmEvent + ", data: " + drmData); },
             onsubtitlechange: function(duration, text, data3, data4) { }
         };
@@ -2800,14 +2922,48 @@ function playVideoUrl(url) {
             document.getElementById('icon-play').style.display = 'none';
         }, function (error) {
             console.error("AVPlay prepare error: " + error);
+            // Tentativo di recovery anche su errore di prepare
+            avplayRecoverWithFallback();
         });
     } catch (e) {
         console.error("AVPlay open error: ", e);
     }
 }
 
+// OTTIMIZZAZIONE: Recovery automatico con fallback qualità
+function avplayRecoverWithFallback() {
+    if (!inPlayer || avplayRetryCount >= 3) {
+        console.error("Max retry reached or player closed. Giving up.");
+        avplayRetryCount = 0;
+        return;
+    }
+    avplayRetryCount++;
+
+    // Prova a scalare alla qualità inferiore
+    if (qualityOptions && qualityOptions.length > 1) {
+        // Trova l'indice corrente e scendi di uno
+        let currentIdx = qualityOptions.findIndex(q => q.url === currentPlayingUrl);
+        let nextIdx = currentIdx + 1;
+        if (nextIdx >= qualityOptions.length) nextIdx = 0; // Torna ad Auto come ultima risorsa
+        
+        console.log("Recovery: switching to quality " + qualityOptions[nextIdx].name);
+        setTimeout(function() {
+            if (inPlayer) playVideoUrl(qualityOptions[nextIdx].url);
+        }, 2000); // Attendi 2s prima di riprovare
+    } else {
+        // Solo una qualità disponibile, riprova la stessa
+        setTimeout(function() {
+            if (inPlayer) playVideoUrl(currentPlayingUrl);
+        }, 3000);
+    }
+}
+
 function closeNativePlayer() {
     inPlayer = false;
+
+    // OTTIMIZZAZIONE: Pulisci watchdog e retry counter
+    if (bufferingWatchdog) { clearTimeout(bufferingWatchdog); bufferingWatchdog = null; }
+    avplayRetryCount = 0;
 
     // Ripristina la UI (Mondo Vuoto)
     const appContainer = document.getElementById('app-container');
@@ -2819,11 +2975,51 @@ function closeNativePlayer() {
         webapis.avplay.close();
     } catch (e) { console.error('AVPlay close error', e); }
 
+    // OTTIMIZZAZIONE: Rimuovi l'oggetto AVPlayer dal DOM per liberare risorse hardware
+    const avPlayer = document.getElementById('av-player');
+    if (avPlayer && avPlayer.parentNode) {
+        avPlayer.parentNode.removeChild(avPlayer);
+    }
+
     document.body.classList.remove('player-active');
     document.documentElement.classList.remove('player-active');
     document.getElementById('player-container').style.display = 'none';
     isQualityMenuOpen = false; document.getElementById('quality-menu').style.display = 'none';
     clearTimeout(uiTimeout);
+
+    // OTTIMIZZAZIONE: Ricostruisci la vista precedente dalla cache (zero fetch)
+    if (prePlayerState) {
+        currentFocusIndex = prePlayerState.menuIndex;
+        inMenu = prePlayerState.wasInMenu;
+        
+        // La ricostruzione usa la cache API se disponibile (istantaneo)
+        const menuId = prePlayerState.menuId;
+        if (prePlayerState.wasInChannelView && channelViewData) {
+            inChannelView = true;
+            inMenu = false;
+            renderChannelView();
+        } else if (prePlayerState.wasInCategoryView && currentCategoryData) {
+            inCategoryView = true;
+            inMenu = false;
+            renderCategoryView();
+        } else if (menuId === 'menu-home') {
+            if (homeDataRows.length > 0) {
+                renderHome();
+            } else {
+                loadContent();
+            }
+        } else if (menuId === 'menu-follow') {
+            if (followDataRows.length > 0) {
+                renderFollowScreen();
+            } else {
+                loadContent();
+            }
+        } else {
+            loadContent();
+        }
+        updateNav();
+        prePlayerState = null;
+    }
 }
 
 function showPlayerUI() {
