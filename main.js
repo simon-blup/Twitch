@@ -4,12 +4,20 @@ const CLIENT_ID = '9g8h4ha9stbc9r76624evvlx4bzk39';
 let allProfiles = JSON.parse(localStorage.getItem('twitch_profiles')) || [];
 let activeProfileId = localStorage.getItem('active_profile_id') || '';
 
+let isProfileSelectionOnStartup = allProfiles.length > 0; // True if we have accounts to choose from
+
 let userToken = '';
 let refreshToken = '';
 let userId = '';
 
 // Carica il profilo attivo all'avvio
 function loadActiveProfile() {
+    if (isProfileSelectionOnStartup) {
+        userToken = '';
+        refreshToken = '';
+        userId = '';
+        return;
+    }
     const profile = allProfiles.find(p => p.id === activeProfileId) || allProfiles[0];
     if (profile) {
         userToken = profile.token;
@@ -101,6 +109,9 @@ window.onload = async function () {
     
     // Assicuriamoci che i profili siano caricati prima di procedere
     loadActiveProfile();
+    
+    // Proactively clean expired profiles on startup
+    await validateAndCleanProfiles();
 
     if (userToken) {
         await checkLoginStatus();
@@ -111,6 +122,13 @@ window.onload = async function () {
     if (!userToken) {
         currentFocusIndex = 4; // Indice del menu Profilo
         inMenu = false;
+        
+        if (isProfileSelectionOnStartup && allProfiles.length > 0) {
+            const activeIndex = allProfiles.findIndex(p => p.id === activeProfileId);
+            if (activeIndex !== -1) {
+                profileActiveCol = activeIndex;
+            }
+        }
     }
 
     updateNav();
@@ -184,6 +202,17 @@ async function refreshTwitchToken() {
             refreshToken = data.refresh_token || refreshToken;
             localStorage.setItem('twitch_access_token', userToken);
             localStorage.setItem('twitch_refresh_token', refreshToken);
+            
+            // Fix: Update multi-profile array instead of legacy localstorage
+            if (activeProfileId) {
+                const profIndex = allProfiles.findIndex(p => p.id === activeProfileId);
+                if (profIndex !== -1) {
+                    allProfiles[profIndex].token = userToken;
+                    allProfiles[profIndex].refresh = refreshToken;
+                    localStorage.setItem('twitch_profiles', JSON.stringify(allProfiles));
+                }
+            }
+            
             console.log("Token aggiornato con successo!");
         } else {
             await logout();
@@ -215,6 +244,20 @@ async function logout() {
     localStorage.removeItem('twitch_access_token');
     localStorage.removeItem('twitch_refresh_token');
     localStorage.removeItem('twitch_user_id');
+    
+    // Auto-remove the invalid profile
+    if (activeProfileId) {
+        allProfiles = allProfiles.filter(p => p.id !== activeProfileId);
+        localStorage.setItem('twitch_profiles', JSON.stringify(allProfiles));
+        
+        if (allProfiles.length > 0) {
+            activeProfileId = allProfiles[0].id;
+            localStorage.setItem('active_profile_id', activeProfileId);
+        } else {
+            activeProfileId = '';
+        }
+    }
+
     userToken = '';
     refreshToken = '';
     userId = '';
@@ -739,6 +782,72 @@ function showSettingsScreen() {
 let profileActiveCol = 0;
 let profileRow = 0; // 0: Profiles row, 1: Logout row
 
+async function validateAndCleanProfiles() {
+    if (allProfiles.length === 0) return;
+    let validProfiles = [];
+    let changed = false;
+
+    for (const p of allProfiles) {
+        try {
+            const res = await fetch('https://id.twitch.tv/oauth2/validate', {
+                headers: { 'Authorization': 'OAuth ' + p.token }
+            });
+            if (res.status === 401) {
+                if (!p.refresh) { changed = true; continue; }
+                const refreshRes = await fetch('https://id.twitch.tv/oauth2/token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `client_id=${CLIENT_ID}&grant_type=refresh_token&refresh_token=${p.refresh}`
+                });
+                const data = await refreshRes.json();
+                if (data.access_token) {
+                    p.token = data.access_token;
+                    p.refresh = data.refresh_token || p.refresh;
+                    validProfiles.push(p);
+                    changed = true;
+                } else {
+                    changed = true; // Refresh failed, remove
+                }
+            } else if (res.ok) {
+                validProfiles.push(p);
+            } else {
+                validProfiles.push(p); // 500 error etc, keep it
+            }
+        } catch (e) {
+            validProfiles.push(p); // Network error, keep it
+        }
+    }
+
+    if (changed) {
+        allProfiles = validProfiles;
+        localStorage.setItem('twitch_profiles', JSON.stringify(allProfiles));
+        
+        // Se il profilo attivo è stato rimosso, cambialo
+        if (!allProfiles.find(p => p.id === activeProfileId)) {
+            if (allProfiles.length > 0) {
+                activeProfileId = allProfiles[0].id;
+                localStorage.setItem('active_profile_id', activeProfileId);
+            } else {
+                activeProfileId = '';
+                userToken = '';
+                refreshToken = '';
+                userId = '';
+                localStorage.removeItem('active_profile_id');
+                localStorage.removeItem('twitch_access_token');
+                localStorage.removeItem('twitch_refresh_token');
+                localStorage.removeItem('twitch_user_id');
+            }
+            loadActiveProfile();
+        }
+        
+        // Evita che il cursore finisca fuori dai limiti se un account sparisce
+        if (profileActiveCol >= allProfiles.length) {
+            profileActiveCol = allProfiles.length > 0 ? allProfiles.length - 1 : 0;
+            if (profileActiveCol < 0) profileActiveCol = 0;
+        }
+    }
+}
+
 async function showProfileScreen() {
     const viewArea = document.getElementById('main-view-area');
     if (!viewArea) return;
@@ -758,7 +867,7 @@ async function showProfileScreen() {
         const isSelected = !inMenu && profileRow === 0 && profileActiveCol === index;
         const isActive = p.id === activeProfileId;
         html += `
-            <div class="profile-item ${isSelected ? 'focused' : ''}" id="profile-card-${index}" style="text-align:center; width:200px; transition: transform 0.3s ease;">
+            <div class="profile-item ${isSelected ? 'focused' : ''}" id="profile-card-${index}" onclick="switchProfile(${index})" style="text-align:center; width:200px; transition: transform 0.3s ease; cursor:pointer;">
                 <div class="profile-avatar-wrapper" style="position:relative; width:170px; height:170px; margin: 0 auto 20px;">
                     <img src="${p.img}" style="width:100%; height:100%; border-radius:50%; border: 6px solid ${isSelected ? '#bf94ff' : (isActive ? 'rgba(191,148,255,0.4)' : 'transparent')}; box-shadow: ${isSelected ? '0 0 30px #bf94ff' : 'none'}; transition: all 0.3s ease;">
                     ${isActive ? '<div style="position:absolute; bottom:10px; right:10px; background:#bf94ff; color:white; border-radius:50%; width:35px; height:35px; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:bold; box-shadow: 0 4px 10px rgba(0,0,0,0.5);">✓</div>' : ''}
@@ -821,6 +930,7 @@ async function startDeviceFlow() {
 async function switchProfile(index) {
     const profile = allProfiles[index];
     if (profile) {
+        isProfileSelectionOnStartup = false;
         activeProfileId = profile.id;
         localStorage.setItem('active_profile_id', activeProfileId);
         loadActiveProfile();
@@ -828,11 +938,50 @@ async function switchProfile(index) {
         // Fix: Reset notification state when switching profile
         isFirstCheck = true;
         lastLiveStreamIds = new Set();
+
+        const splash = document.getElementById('splash-screen');
+        if (splash) splash.classList.remove('hidden');
         
         // Ricarica tutto
         await checkLoginStatus();
+
+        const viewArea = document.getElementById('main-view-area');
+
+        if (!userToken) {
+            // Se il token era scaduto e il refresh è fallito, logout() ha già rimosso l'account e ricaricato la UI.
+            if (splash) splash.classList.add('hidden');
+            if (viewArea) {
+                const errorDiv = document.createElement('div');
+                errorDiv.style.color = '#ff4f4f';
+                errorDiv.style.fontSize = '24px';
+                errorDiv.style.fontWeight = 'bold';
+                errorDiv.style.textAlign = 'center';
+                errorDiv.style.position = 'absolute';
+                errorDiv.style.top = '40px';
+                errorDiv.style.width = '100%';
+                errorDiv.style.zIndex = '10';
+                errorDiv.innerText = 'Session expired. The account has been automatically removed.';
+                viewArea.appendChild(errorDiv);
+                
+                setTimeout(() => {
+                    if (errorDiv.parentNode) errorDiv.parentNode.removeChild(errorDiv);
+                }, 5000);
+            }
+            return;
+        }
+
+        currentFocusIndex = 1; // go to home
+        inMenu = true;
+        
         await loadContent();
         updateNav();
+
+        if (splash) {
+            // Add a tiny delay to ensure rendering is complete before hiding splash
+            setTimeout(() => {
+                splash.classList.add('hidden');
+            }, 100);
+        }
     }
 }
 
@@ -881,6 +1030,7 @@ async function pollForToken(deviceCode, interval) {
             const user = userRes.data && userRes.data[0];
             
             if (user) {
+                isProfileSelectionOnStartup = false;
                 const newProfile = {
                     id: user.id,
                     name: user.display_name,
@@ -1578,15 +1728,25 @@ function handleKeydown(e) {
                 return;
             }
         }
-        if (e.keyCode >= 37 && e.keyCode <= 40) {
-            e.preventDefault();
+        
+        if (currentFocusIndex === 4) {
+            // In Profile View: allow navigation, but bind back keys to exit
+            if (e.keyCode === 8 || e.keyCode === 27 || e.keyCode === 461 || e.keyCode === 10009) {
+                showExitMenu();
+                return;
+            }
+            // Allow other keys to fall through to profile grid navigation
+        } else {
+            if (e.keyCode >= 37 && e.keyCode <= 40) {
+                e.preventDefault();
+                return;
+            }
+            if (e.keyCode === 8 || e.keyCode === 27 || e.keyCode === 461 || e.keyCode === 10009) {
+                showExitMenu();
+                return;
+            }
             return;
         }
-        if (e.keyCode === 8 || e.keyCode === 27 || e.keyCode === 461 || e.keyCode === 10009) {
-            showExitMenu();
-            return;
-        }
-        return;
     }
 
     // GESTIONE ANNULLAMENTO DEVICE FLOW (QUANDO GIÀ LOGGATI)
@@ -2127,7 +2287,9 @@ function handleKeydown(e) {
                 } else if (e.keyCode === 40) { // Giù -> Logout
                     profileRow = 1; showProfileScreen();
                 } else if (e.keyCode === 38) { // Su -> Menu
-                    inMenu = true; updateNav(); showProfileScreen();
+                    if (userToken) {
+                        inMenu = true; updateNav(); showProfileScreen();
+                    }
                 } else if (e.keyCode === 13) { // OK
                     if (profileActiveCol < allProfiles.length) {
                         switchProfile(profileActiveCol);
