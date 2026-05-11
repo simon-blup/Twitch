@@ -64,6 +64,7 @@ let originalHeroCount = 0; // Per gestire il loop infinito della prima riga
 
 // Per gestire i Settings
 let settingsRow = 0;
+let settingsTab = 0; // 0: Appearance, 1: System
 let settingsCol = [0, 0, 0, 0, 0];
 
 // Navigation Race Condition & Animation Lock
@@ -365,7 +366,8 @@ async function loadContent() {
         followActiveCol = 0;
         await getFollowData(mySeq);
     } else if (selectedId === 'menu-settings') {
-        settingsRow = 0;
+        settingsRow = -1; // -1 indicates focus is on the tabs
+        settingsTab = 0;
         settingsCol = [
             appSettings.barPos === 'center' ? 0 : 1,
             appSettings.theme === 'dark' ? 0 : 1,
@@ -735,47 +737,96 @@ function showNotification(userName, title, profileImg) {
 function showSettingsScreen() {
     const viewArea = document.getElementById('main-view-area');
     if (!viewArea) return;
-    const textColor = document.body.classList.contains('theme-light') ? '#000' : 'white';
+    const isLight = document.body.classList.contains('theme-light');
+    const textColor = isLight ? '#000' : 'white';
+    const inactiveColor = isLight ? '#555' : '#adadb8';
+    const borderColor = isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.2)';
 
-    viewArea.innerHTML = `
-        <div class="full-page-screen">
-            <div style="display:flex; flex-direction:column; gap:40px; width:100%; padding-top: 40px;">
-                <div>
-                    <h3 style="color:${textColor}; margin-bottom:15px; text-align:center; font-size: 20px;">Bar Position</h3>
-                    <div style="display:flex; justify-content:center; gap:30px;">
-                        <div class="settings-btn ${(!inMenu && settingsRow === 0 && settingsCol[0] === 0) ? 'focused' : ''} ${appSettings.barPos === 'center' ? 'active-setting' : ''}">Top Center</div>
-                        <div class="settings-btn ${(!inMenu && settingsRow === 0 && settingsCol[0] === 1) ? 'focused' : ''} ${appSettings.barPos === 'left' ? 'active-setting' : ''}">Top Left</div>
-                    </div>
-                </div>
-                <div>
-                    <h3 style="color:${textColor}; margin-bottom:15px; text-align:center; font-size: 20px;">Theme</h3>
-                    <div style="display:flex; justify-content:center; gap:30px;">
-                        <div class="settings-btn ${(!inMenu && settingsRow === 1 && settingsCol[1] === 0) ? 'focused' : ''} ${appSettings.theme === 'dark' ? 'active-setting' : ''}">Dark</div>
-                        <div class="settings-btn ${(!inMenu && settingsRow === 1 && settingsCol[1] === 1) ? 'focused' : ''} ${appSettings.theme === 'light' ? 'active-setting' : ''}">Light</div>
-                    </div>
-                </div>
-                <div>
-                    <h3 style="color:${textColor}; margin-bottom:15px; text-align:center; font-size: 20px;">Performance Mode</h3>
-                    <div style="display:flex; justify-content:center; gap:30px;">
-                        <div class="settings-btn ${(!inMenu && settingsRow === 2 && settingsCol[2] === 0) ? 'focused' : ''} ${appSettings.performanceMode ? 'active-setting' : ''}">On</div>
-                        <div class="settings-btn ${(!inMenu && settingsRow === 2 && settingsCol[2] === 1) ? 'focused' : ''} ${!appSettings.performanceMode ? 'active-setting' : ''}">Off</div>
-                    </div>
-                </div>
-                <div>
-                    <h3 style="color:${textColor}; margin-bottom:15px; text-align:center; font-size: 20px;">Notifications</h3>
-                    <div style="display:flex; justify-content:center; gap:30px;">
-                        <div class="settings-btn ${(!inMenu && settingsRow === 3 && settingsCol[3] === 0) ? 'focused' : ''} ${appSettings.notifications ? 'active-setting' : ''}">Enabled</div>
-                        <div class="settings-btn ${(!inMenu && settingsRow === 3 && settingsCol[3] === 1) ? 'focused' : ''} ${!appSettings.notifications ? 'active-setting' : ''}">Disabled</div>
-                    </div>
-                </div>
-                <div>
-                    <h3 style="color:${textColor}; margin-bottom:15px; text-align:center; font-size: 20px;">Ad Block (Proxy)</h3>
-                    <div style="display:flex; justify-content:center; gap:30px;">
-                        <div class="settings-btn ${(!inMenu && settingsRow === 4 && settingsCol[4] === 0) ? 'focused' : ''} ${appSettings.adBlock ? 'active-setting' : ''}">Enabled</div>
-                        <div class="settings-btn ${(!inMenu && settingsRow === 4 && settingsCol[4] === 1) ? 'focused' : ''} ${!appSettings.adBlock ? 'active-setting' : ''}">Disabled</div>
-                    </div>
+    let contentHtml = '';
+
+    if (settingsTab === 0) {
+        // Appearance Tab
+        contentHtml = `
+            <div>
+                <h3 style="color:${textColor}; margin-bottom:15px; text-align:center; font-size: 20px;">Bar Position</h3>
+                <div style="display:flex; justify-content:center; gap:30px;">
+                    <div class="settings-btn ${(!inMenu && settingsRow === 0 && settingsCol[0] === 0) ? 'focused' : ''} ${appSettings.barPos === 'center' ? 'active-setting' : ''}">Top Center</div>
+                    <div class="settings-btn ${(!inMenu && settingsRow === 0 && settingsCol[0] === 1) ? 'focused' : ''} ${appSettings.barPos === 'left' ? 'active-setting' : ''}">Top Left</div>
                 </div>
             </div>
+            <div>
+                <h3 style="color:${textColor}; margin-bottom:15px; text-align:center; font-size: 20px;">Theme</h3>
+                <div style="display:flex; justify-content:center; gap:30px;">
+                    <div class="settings-btn ${(!inMenu && settingsRow === 1 && settingsCol[1] === 0) ? 'focused' : ''} ${appSettings.theme === 'dark' ? 'active-setting' : ''}">Dark</div>
+                    <div class="settings-btn ${(!inMenu && settingsRow === 1 && settingsCol[1] === 1) ? 'focused' : ''} ${appSettings.theme === 'light' ? 'active-setting' : ''}">Light</div>
+                </div>
+            </div>
+            <div>
+                <h3 style="color:${textColor}; margin-bottom:15px; text-align:center; font-size: 20px;">Notifications</h3>
+                <div style="display:flex; justify-content:center; gap:30px;">
+                    <div class="settings-btn ${(!inMenu && settingsRow === 2 && settingsCol[2] === 0) ? 'focused' : ''} ${appSettings.notifications ? 'active-setting' : ''}">Enabled</div>
+                    <div class="settings-btn ${(!inMenu && settingsRow === 2 && settingsCol[2] === 1) ? 'focused' : ''} ${!appSettings.notifications ? 'active-setting' : ''}">Disabled</div>
+                </div>
+            </div>`;
+    } else {
+        // System Tab
+        contentHtml = `
+            <div>
+                <h3 style="color:${textColor}; margin-bottom:15px; text-align:center; font-size: 20px;">Performance Mode</h3>
+                <div style="display:flex; justify-content:center; gap:30px;">
+                    <div class="settings-btn ${(!inMenu && settingsRow === 0 && settingsCol[3] === 0) ? 'focused' : ''} ${appSettings.performanceMode ? 'active-setting' : ''}">On</div>
+                    <div class="settings-btn ${(!inMenu && settingsRow === 0 && settingsCol[3] === 1) ? 'focused' : ''} ${!appSettings.performanceMode ? 'active-setting' : ''}">Off</div>
+                </div>
+            </div>
+            <div>
+                <h3 style="color:${textColor}; margin-bottom:15px; text-align:center; font-size: 20px;">Ad Block (Proxy)</h3>
+                <div style="display:flex; justify-content:center; gap:30px;">
+                    <div class="settings-btn ${(!inMenu && settingsRow === 1 && settingsCol[4] === 0) ? 'focused' : ''} ${appSettings.adBlock ? 'active-setting' : ''}">Enabled</div>
+                    <div class="settings-btn ${(!inMenu && settingsRow === 1 && settingsCol[4] === 1) ? 'focused' : ''} ${!appSettings.adBlock ? 'active-setting' : ''}">Disabled</div>
+                </div>
+            </div>`;
+    }
+
+    const getTabStyle = (tabIdx) => {
+        let style = `display:flex; align-items:center; gap:12px; padding:15px 50px; font-size:26px; font-weight:bold; margin-bottom:-2px; transition:all 0.3s ease; border-radius:10px 10px 0 0; `;
+        
+        const isActive = settingsTab === tabIdx;
+        const isFocused = (!inMenu && settingsRow === -1 && settingsTab === tabIdx);
+        
+        if (isActive) {
+            style += `color:${textColor}; border-bottom: 4px solid #bf94ff; `;
+        } else {
+            style += `color:${inactiveColor}; border-bottom: 4px solid transparent; `;
+        }
+        
+        if (isFocused) {
+            style += `background:rgba(191,148,255,0.15); color:#bf94ff; `;
+        }
+        
+        return style;
+    };
+
+    const appIcon = `<svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M12 22C6.49 22 2 17.51 2 12S6.49 2 12 2s10 4.04 10 9c0 1.31-.83 2.67-2.12 3.12-.39.14-.79.35-.79.79 0 .21.14.47.38.83.21.31.43.68.43 1.26 0 2.21-3.58 5-7.9 5zM12 4c-4.41 0-8 3.59-8 8s3.59 8 8 8c3.08 0 5.9-2.02 5.9-3 0-.17-.11-.42-.31-.73-.28-.43-.53-.8-.53-1.35 0-1.28.87-2.2 1.83-2.54.59-.21 1.11-.7 1.11-1.38 0-3.86-3.59-7-8-7z"/><circle cx="6.5" cy="11.5" r="1.5"/><circle cx="9.5" cy="7.5" r="1.5"/><circle cx="14.5" cy="7.5" r="1.5"/><circle cx="17.5" cy="11.5" r="1.5"/></svg>`;
+    const sysIcon = `<svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor"><path d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.06-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.73,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.06,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.43-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.49-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"/></svg>`;
+
+    viewArea.innerHTML = `
+        <div class="full-page-screen" style="display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding-top:40px;">
+            
+            <!-- Tabs Menu -->
+            <div style="display:flex; justify-content:center; width:80%; max-width:800px; border-bottom: 2px solid ${borderColor}; margin-bottom: 60px;">
+                <div style="${getTabStyle(0)}">
+                    ${appIcon} Appearance
+                </div>
+                <div style="${getTabStyle(1)}">
+                    ${sysIcon} System
+                </div>
+            </div>
+
+            <!-- Tab Content -->
+            <div style="display:flex; flex-direction:column; gap:40px; width:100%;">
+                ${contentHtml}
+            </div>
+
         </div>`;
 }
 
@@ -2267,17 +2318,35 @@ function handleKeydown(e) {
                 }
             }
         } else if (selectedId === 'menu-settings') {
-            if (e.keyCode === 39 && settingsCol[settingsRow] < 1) { settingsCol[settingsRow]++; showSettingsScreen(); }
-            else if (e.keyCode === 37 && settingsCol[settingsRow] > 0) { settingsCol[settingsRow]--; showSettingsScreen(); }
-            else if (e.keyCode === 40 && settingsRow < 4) { settingsRow++; showSettingsScreen(); }
-            else if (e.keyCode === 38) { if (settingsRow > 0) { settingsRow--; showSettingsScreen(); } else { inMenu = true; updateNav(); showSettingsScreen(); } }
-            else if (e.keyCode === 13) {
-                if (settingsRow === 0) appSettings.barPos = settingsCol[0] === 0 ? 'center' : 'left';
-                else if (settingsRow === 1) appSettings.theme = settingsCol[1] === 0 ? 'dark' : 'light';
-                else if (settingsRow === 2) appSettings.performanceMode = settingsCol[2] === 0;
-                else if (settingsRow === 3) appSettings.notifications = settingsCol[3] === 0;
-                else if (settingsRow === 4) appSettings.adBlock = settingsCol[4] === 0;
-                saveSettings(); showSettingsScreen(); setTimeout(updateNav, 50);
+            if (settingsRow === -1) {
+                // Focus is on Tabs
+                if (e.keyCode === 39 && settingsTab === 0) { settingsTab = 1; showSettingsScreen(); }
+                else if (e.keyCode === 37 && settingsTab === 1) { settingsTab = 0; showSettingsScreen(); }
+                else if (e.keyCode === 40) { settingsRow = 0; showSettingsScreen(); }
+                else if (e.keyCode === 38) { inMenu = true; updateNav(); showSettingsScreen(); }
+            } else {
+                // Focus is on Settings items
+                let maxRow = settingsTab === 0 ? 2 : 1;
+                let actualColIndex = settingsTab === 0 ? settingsRow : settingsRow + 3;
+
+                if (e.keyCode === 39 && settingsCol[actualColIndex] < 1) { settingsCol[actualColIndex]++; showSettingsScreen(); }
+                else if (e.keyCode === 37 && settingsCol[actualColIndex] > 0) { settingsCol[actualColIndex]--; showSettingsScreen(); }
+                else if (e.keyCode === 40 && settingsRow < maxRow) { settingsRow++; showSettingsScreen(); }
+                else if (e.keyCode === 38) { 
+                    if (settingsRow > 0) { settingsRow--; showSettingsScreen(); } 
+                    else { settingsRow = -1; showSettingsScreen(); } 
+                }
+                else if (e.keyCode === 13) {
+                    if (settingsTab === 0) {
+                        if (settingsRow === 0) appSettings.barPos = settingsCol[0] === 0 ? 'center' : 'left';
+                        else if (settingsRow === 1) appSettings.theme = settingsCol[1] === 0 ? 'dark' : 'light';
+                        else if (settingsRow === 2) appSettings.notifications = settingsCol[2] === 0;
+                    } else {
+                        if (settingsRow === 0) appSettings.performanceMode = settingsCol[3] === 0;
+                        else if (settingsRow === 1) appSettings.adBlock = settingsCol[4] === 0;
+                    }
+                    saveSettings(); showSettingsScreen(); setTimeout(updateNav, 50);
+                }
             }
         } else if (selectedId === 'menu-profile') {
             if (allProfiles.length === 0) {
