@@ -344,16 +344,19 @@ function getThumbSize(type) {
     if (appSettings.performanceMode) {
         if (type === 'stream') return { w: 400, h: 225 };
         if (type === 'category') return { w: 150, h: 200 };
+        if (type === 'avatar') return { w: 70, h: 70 };
     }
     if (type === 'stream') return { w: 800, h: 450 };
     if (type === 'category') return { w: 300, h: 400 };
+    if (type === 'avatar') return { w: 300, h: 300 };
     return { w: 600, h: 338 }; // default
 }
 
 function getSafeThumb(url, type) {
     if (!url) return 'icon.png';
     const size = getThumbSize(type);
-    return url.replace('{width}', size.w).replace('{height}', size.h)
+    return url.replace(/-[0-9]+x[0-9]+\./, `-${size.w}x${size.h}.`)
+              .replace('{width}', size.w).replace('{height}', size.h)
               .replace('%{width}', size.w).replace('%{height}', size.h);
 }
 
@@ -1355,6 +1358,7 @@ function updateNav() {
 let searchDataRows = [];
 let searchActiveRow = 0;
 let searchActiveCol = 0;
+let searchColIndices = [];
 let isSearchInputFocused = false;
 
 async function executeSearch(query) {
@@ -1422,7 +1426,7 @@ async function executeSearch(query) {
         }
 
         searchDataRows = [];
-        const limit = appSettings.performanceMode ? 3 : 6;
+        const limit = appSettings.performanceMode ? 4 : 7;
 
         if (liveStreams.length > 0) {
             searchDataRows.push({ title: t('search_live'), type: 'live', data: liveStreams.slice(0, limit) });
@@ -1496,7 +1500,7 @@ function renderSearchResults() {
                     </div>`;
             } else if (row.type === 'channel') {
                 const thumb = item.thumbnail_url || '';
-                const highResThumb = thumb.replace(/-[0-9]+x[0-9]+\./, '-300x300.').replace('{width}', '300').replace('{height}', '300');
+                const highResThumb = getSafeThumb(thumb, 'avatar');
                 html += `
                     <div class="search-channel-card ${selClass}" id="search-card-${rIdx}-${cIdx}" style="flex-shrink:0; width:350px;">
                         <img src="${highResThumb}" loading="lazy" onerror="this.src='icon.png'" class="search-avatar">
@@ -1818,7 +1822,7 @@ function renderCategoryView() {
     const titleColor = isLight ? '#000' : 'white';
 
     const rawBox = currentCategoryData.box_art_url || '';
-    let boxThumb = rawBox.replace(/-[0-9]+x[0-9]+\./, '-285x380.').replace('{width}', '285').replace('{height}', '380');
+    let boxThumb = getSafeThumb(rawBox, 'category');
     let viewers = formatViewers(currentCategoryData.viewer_count || 0);
 
     let html = `
@@ -2356,19 +2360,33 @@ function handleKeydown(e) {
             }
             const currentRow = searchDataRows[searchActiveRow];
             if (e.keyCode === 39) {
-                if (searchActiveCol < currentRow.data.length - 1) { searchActiveCol++; updateSearchSelection(); }
+                if (searchActiveCol < currentRow.data.length - 1) { 
+                    searchActiveCol++; 
+                    searchColIndices[searchActiveRow] = searchActiveCol;
+                    updateSearchSelection(); 
+                }
             } else if (e.keyCode === 37) {
-                if (searchActiveCol > 0) { searchActiveCol--; updateSearchSelection(); }
+                if (searchActiveCol > 0) { 
+                    searchActiveCol--; 
+                    searchColIndices[searchActiveRow] = searchActiveCol;
+                    updateSearchSelection(); 
+                }
             } else if (e.keyCode === 40) {
                 if (searchActiveRow < searchDataRows.length - 1) {
                     searchActiveRow++;
-                    searchActiveCol = 0;
+                    searchActiveCol = searchColIndices[searchActiveRow] || 0;
+                    if (searchActiveCol >= searchDataRows[searchActiveRow].data.length) {
+                        searchActiveCol = searchDataRows[searchActiveRow].data.length - 1;
+                    }
                     updateSearchSelection();
                 }
             } else if (e.keyCode === 38) {
                 if (searchActiveRow > 0) {
                     searchActiveRow--;
-                    searchActiveCol = 0;
+                    searchActiveCol = searchColIndices[searchActiveRow] || 0;
+                    if (searchActiveCol >= searchDataRows[searchActiveRow].data.length) {
+                        searchActiveCol = searchDataRows[searchActiveRow].data.length - 1;
+                    }
                     updateSearchSelection();
                 } else {
                     isSearchInputFocused = true;
