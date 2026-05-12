@@ -27,7 +27,7 @@
         },
 
         startDeviceFlow: async function() {
-            this.renderUnauthenticated('Richiesta codice...');
+            this.renderUnauthenticated(App.t('login_request').toUpperCase());
             try {
                 const res = await fetch('https://id.twitch.tv/oauth2/device', {
                     method: 'POST',
@@ -39,14 +39,13 @@
                 if (data.device_code) {
                     state.deviceCode = data.device_code;
                     state.userCode = data.user_code;
-                    state.statusMsg = `In attesa di autorizzazione...`;
                     this.renderUnauthenticated();
                     this.pollForToken(data.interval);
                 } else {
-                    this.renderUnauthenticated('Errore nella richiesta di login.');
+                    this.renderUnauthenticated(App.t('login_error').toUpperCase());
                 }
             } catch (e) {
-                this.renderUnauthenticated('Errore di rete durante il login.');
+                this.renderUnauthenticated(App.t('login_network_error').toUpperCase());
             }
         },
 
@@ -66,7 +65,6 @@
                         clearInterval(state.pollInterval);
                         state.isPolling = false;
                         
-                        // Validazione per ottenere user_id
                         const valRes = await fetch('https://id.twitch.tv/oauth2/validate', {
                             headers: { 'Authorization': 'OAuth ' + data.access_token }
                         });
@@ -79,7 +77,6 @@
                             refresh: data.refresh_token
                         };
                         
-                        // Evita duplicati
                         App.profiles = App.profiles.filter(p => p.id !== newProfile.id);
                         App.profiles.push(newProfile);
                         App.activeProfileId = newProfile.id;
@@ -87,13 +84,11 @@
                         localStorage.setItem('active_profile_id', App.activeProfileId);
                         
                         App.authManager.loadProfiles();
-                        
-                        // Ricarica la vista profilo ora che siamo loggati
                         this.renderAuthenticated();
                     } else if (data.message !== 'authorization_pending') {
                         clearInterval(state.pollInterval);
                         state.isPolling = false;
-                        this.renderUnauthenticated('Login fallito o scaduto. Riprova.');
+                        this.renderUnauthenticated(App.t('login_expired').toUpperCase());
                     }
                 } catch (e) {
                     console.error("Polling error", e);
@@ -106,16 +101,28 @@
             if (!viewArea) return;
 
             let html = `
-                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:white; text-align:center;">
-                    <img src="icon.png" style="width:150px; margin-bottom:30px;">
-                    <h2 style="font-size:32px; margin-bottom:20px;">Accedi a Twitch TV</h2>
+                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; width:100vw; position:fixed; top:0; left:0; background:#0e0e10; color:white; text-align:center; z-index:1000;">
+                    <!-- Logo in alto -->
+                    <img src="icon.png" style="width:100px; position:absolute; top:60px;">
+                    
                     ${state.userCode ? `
-                        <div style="font-size:24px; color:#adadb8; margin-bottom:10px;">Vai su <span style="color:white; font-weight:bold;">twitch.tv/activate</span></div>
-                        <div style="font-size:24px; color:#adadb8; margin-bottom:30px;">Inserisci il codice:</div>
-                        <div style="font-size:64px; font-weight:bold; letter-spacing:10px; background:#18181b; padding:20px 40px; border-radius:15px; border:2px solid #bf94ff;">${state.userCode}</div>
-                        <div style="font-size:20px; color:#bf94ff; margin-top:30px;">${state.statusMsg}</div>
+                        <!-- Contenitore Principale -->
+                        <div style="position:relative; width:100%; height:100%; display:flex; align-items:center; justify-content:center;">
+                            
+                            <!-- QR Code centrato tra lato sinistro e centro -->
+                            <div style="position:absolute; left:25%; transform:translateX(-50%); background:white; padding:15px; border-radius:15px; box-shadow: 0 0 30px rgba(145, 70, 255, 0.3);">
+                                <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https://www.twitch.tv/activate?user_code=${state.userCode}" style="width:180px; height:180px; display:block;">
+                            </div>
+
+                            <!-- Box Codice al centro esatto dello schermo -->
+                            <div style="background:#18181b; padding:40px 60px; border-radius:30px; border:4px solid #bf94ff; box-shadow: 0 0 50px rgba(145, 70, 255, 0.2);">
+                                <div style="font-size:80px; font-weight:bold; letter-spacing:12px; margin-bottom:15px;">${state.userCode}</div>
+                                <div style="font-size:32px; color:#bf94ff; font-weight:bold; letter-spacing:2px;">twitch.tv/activate</div>
+                            </div>
+
+                        </div>
                     ` : `
-                        <div style="font-size:24px; color:#adadb8;">${msg || 'Caricamento...'}</div>
+                        <div style="font-size:28px; color:#adadb8; font-weight:300; letter-spacing:2px;">${msg || App.t('loading').toUpperCase()}</div>
                     `}
                 </div>
             `;
@@ -126,7 +133,6 @@
             const viewArea = document.getElementById('main-view-area');
             if (!viewArea) return;
 
-            // Fetch info base utente per avatar
             let userAvatar = 'icon.png';
             try {
                 const res = await App.api.twitchFetch(`https://api.twitch.tv/helix/users?id=${App.auth.userId}`);
@@ -137,27 +143,19 @@
 
             let html = `
                 <div style="display:flex; height:100%; color:white; padding-top:40px;">
-                    <!-- Colonna sinistra: User info -->
                     <div style="width:400px; display:flex; flex-direction:column; align-items:center; border-right:2px solid #303032; padding:0 40px;">
                         <img src="${userAvatar}" style="width:200px; height:200px; border-radius:50%; border:4px solid #bf94ff; margin-bottom:20px;">
                         <h2 style="font-size:32px; margin:0;">${App.profiles.find(p=>p.id === App.activeProfileId)?.login || 'Utente'}</h2>
                     </div>
-                    
-                    <!-- Colonna destra: Accounts list -->
                     <div style="flex:1; padding:0 60px;">
                         <h3 style="font-size:26px; margin-bottom:30px; color:#adadb8;">${App.t('accounts_title')}</h3>
                         <div id="profile-accounts-list">
                             ${App.profiles.map((p, i) => `
                                 <div id="prof-opt-${i}" class="profile-opt" style="display:flex; justify-content:space-between; align-items:center; padding:20px 30px; margin-bottom:15px; background:#18181b; border-radius:8px; font-size:24px; border:3px solid transparent; transition:0.2s;">
                                     <div style="font-weight:bold;">${p.login} ${p.id === App.activeProfileId ? '(Attivo)' : ''}</div>
-                                    ${p.id === App.activeProfileId ? `
-                                        <div style="color:#ff4f4f; font-size:18px;">Premi OK per scollegare</div>
-                                    ` : `
-                                        <div style="color:#bf94ff; font-size:18px;">Premi OK per passare</div>
-                                    `}
+                                    <div style="color:#bf94ff; font-size:18px;">${p.id === App.activeProfileId ? 'OK per scollegare' : 'OK per passare'}</div>
                                 </div>
                             `).join('')}
-                            
                             <div id="prof-opt-${App.profiles.length}" class="profile-opt" style="display:flex; justify-content:center; align-items:center; padding:20px 30px; margin-top:30px; background:#303032; border-radius:8px; font-size:24px; border:3px solid transparent; transition:0.2s;">
                                 + ${App.t('add_account')}
                             </div>
@@ -166,15 +164,11 @@
                 </div>
             `;
             viewArea.innerHTML = html;
-            
-            // Assicuriamoci che activeRow sia nei limiti
-            if (state.activeRow > App.profiles.length) state.activeRow = App.profiles.length;
             this.updateSelection();
         },
 
         updateSelection: function() {
-            if (!App.auth.token) return; // Niente da selezionare nella schermata di login
-
+            if (!App.auth.token) return;
             document.querySelectorAll('.profile-opt').forEach((el, i) => {
                 if (!App.nav.inMenu && i === state.activeRow) {
                     el.style.borderColor = 'white';
@@ -192,46 +186,36 @@
 
         handleKey: function(e) {
             if (!App.auth.token) {
-                if (e.keyCode === 38 || e.keyCode === 8 || e.keyCode === 27 || e.keyCode === 461 || e.keyCode === 10009) {
-                    App.nav.inMenu = true;
-                    App.nav.update();
-                }
+                // Blocco totale menu durante il login
                 return;
             }
 
-            const maxRow = App.profiles.length; // length è l'indice del pulsante "Aggiungi"
-
+            const maxRow = App.profiles.length;
             if (e.keyCode === 40 && state.activeRow < maxRow) { state.activeRow++; this.updateSelection(); }
             if (e.keyCode === 38 && state.activeRow > 0) { state.activeRow--; this.updateSelection(); }
             if (e.keyCode === 38 && state.activeRow === 0) { App.nav.inMenu = true; App.nav.update(); this.updateSelection(); }
             
             if (e.keyCode === 13) {
                 if (state.activeRow < App.profiles.length) {
-                    // Click su un account
                     const clickedProfile = App.profiles[state.activeRow];
                     if (clickedProfile.id === App.activeProfileId) {
-                        // Logout
                         App.authManager.logout();
                     } else {
-                        // Switch account
                         App.activeProfileId = clickedProfile.id;
                         localStorage.setItem('active_profile_id', App.activeProfileId);
                         App.authManager.loadProfiles();
                         this.renderAuthenticated();
                     }
                 } else {
-                    // Add account
                     state.isPolling = false;
                     clearInterval(state.pollInterval);
-                    App.auth.token = ''; // Forza lo stato disconnesso per mostrare il flow
+                    App.auth.token = '';
                     this.startDeviceFlow();
                 }
             }
 
             if (e.keyCode === 8 || e.keyCode === 27 || e.keyCode === 461 || e.keyCode === 10009) {
-                App.nav.inMenu = true;
-                App.nav.update();
-                this.updateSelection();
+                App.nav.inMenu = true; App.nav.update(); this.updateSelection();
             }
         },
 

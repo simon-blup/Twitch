@@ -99,6 +99,10 @@ window.App = {
             followed_channels: '已关注的频道', center: '居中', left: '居左',
             loading: '加载中...', live_badge: '直播', loading_error: '加载错误。',
             channels: '频道',
+            login_request: '正在请求代码...',
+            login_error: '登录错误',
+            login_network_error: '网络错误',
+            login_expired: '登录已过期',
             setting_avatars: '显示关注的头像',
             setting_avatars_desc: '显示关注的直播主图标。可能会增加加载时间。'
         },
@@ -446,4 +450,4 @@ window.App = {
     }
 };
 
-window.onload = () => App.init();
+window.onload = () => App.init();init();p.init();
