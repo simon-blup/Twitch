@@ -21,9 +21,10 @@ window.App = {
         'English': {
             menu_search: 'Search', menu_home: 'Home', menu_follow: 'Followed', menu_settings: 'Settings', menu_profile: 'Profile',
             tab_appearance: 'Appearance', tab_system: 'System',
-            setting_bar_pos: 'Bar Position', setting_theme: 'Dark Theme', setting_notifications: 'Notifications',
+            setting_bar_pos: 'Center Bar', setting_theme: 'Dark Theme', setting_notifications: 'Notifications',
             setting_perf: 'Performance Mode', setting_adblock: 'Ad Block (Proxy)', setting_lang: 'Language',
             setting_status: 'Twitch Status', setting_remove: 'Remove Account from List',
+            setting_avatars: 'Profile in Followed',
             status_ok: 'All Systems Operational',
             accounts_title: 'Accounts', add_account: 'Add Account',
             viewers: 'viewers', followers: 'followers', streams: 'Streams', clips: 'Clips',
@@ -45,7 +46,7 @@ window.App = {
         'Italiano': {
             menu_search: 'Cerca', menu_home: 'Home', menu_follow: 'Seguiti', menu_settings: 'Impostazioni', menu_profile: 'Profilo',
             tab_appearance: 'Aspetto', tab_system: 'Sistema',
-            setting_bar_pos: 'Posizione Barra', setting_theme: 'Tema Scuro', setting_notifications: 'Notifiche',
+            setting_bar_pos: 'Barra al Centro', setting_theme: 'Tema Scuro', setting_notifications: 'Notifiche',
             setting_perf: 'Modalità Performance', setting_adblock: 'Blocco Pubblicità', setting_lang: 'Lingua',
             setting_status: 'Stato Twitch', setting_remove: 'Rimuovi Account dalla Lista',
             status_ok: 'Tutti i sistemi operativi',
@@ -60,7 +61,7 @@ window.App = {
             followed_channels: 'Canali Seguiti', center: 'Centro', left: 'Sinistra',
             loading: 'Caricamento...', live_badge: 'LIVE', loading_error: 'Errore di caricamento.',
             channels: 'Canali',
-            setting_avatars: 'Mostra Avatar Seguiti',
+            setting_avatars: 'Profilo nei Seguiti',
             setting_avatars_desc: 'Mostra le icone dei canali live seguiti. Potrebbe allungare il caricamento.'
         },
         'Español': {
@@ -112,7 +113,7 @@ window.App = {
         'Français': {
             menu_search: 'Rechercher', menu_home: 'Accueil', menu_follow: 'Suivis', menu_settings: 'Paramètres', menu_profile: 'Profil',
             tab_appearance: 'Apparence', tab_system: 'Système',
-            setting_bar_pos: 'Position de la barre', setting_theme: 'Thème sombre', setting_notifications: 'Notifications',
+            setting_bar_pos: 'Barre Centrée', setting_theme: 'Thème sombre', setting_notifications: 'Notifications',
             setting_perf: 'Mode performance', setting_adblock: 'Bloqueur de pub', setting_lang: 'Langue',
             setting_status: 'État de Twitch', setting_remove: 'Supprimer le compte de la liste',
             status_ok: 'Tous les systèmes sont opérationnels',
