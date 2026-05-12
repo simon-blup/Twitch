@@ -35,8 +35,11 @@ window.App = {
             feat_content: 'Featured Content', top_cats: 'Top Categories', live_recom: 'Followed Channels',
             followed_channels: 'Followed Channels', center: 'Center', left: 'Left',
             loading: 'Loading...', live_badge: 'LIVE', loading_error: 'Loading error.',
-            channels: 'Channels',
-            setting_avatars: 'Show Followed Avatars',
+            channels: 'Channels', clips: 'Clips',
+            days_7: '7 Days', days_30: '30 Days',
+            lang_en_only: 'EN', lang_it: 'IT', lang_fr: 'FR', lang_es: 'ES', lang_zh: 'ZH',
+            login_request: 'Requesting code...',
+
             setting_avatars_desc: 'Shows live streamer icons in the followed section. May increase loading time.'
         },
         'Italiano': {
