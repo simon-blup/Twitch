@@ -84,7 +84,12 @@
                         localStorage.setItem('active_profile_id', App.activeProfileId);
                         
                         App.authManager.loadProfiles();
-                        this.renderAuthenticated();
+                        
+                        // Navigazione in Home con MENU ATTIVO
+                        App.nav.focusIndex = 1; // Home
+                        App.nav.inMenu = true;
+                        App.nav.update();
+                        App.nav.navigateTo('home');
                     } else if (data.message !== 'authorization_pending') {
                         clearInterval(state.pollInterval);
                         state.isPolling = false;
@@ -102,27 +107,23 @@
 
             let html = `
                 <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; width:100vw; position:fixed; top:0; left:0; background:#0e0e10; color:white; text-align:center; z-index:1000;">
-                    <!-- Logo in alto -->
-                    <img src="icon.png" style="width:100px; position:absolute; top:60px;">
+                    <!-- Logo in alto adattivo -->
+                    <img src="icon.png" style="width:100px; position:absolute; top:${App.nav.inMenu ? '140px' : '60px'}; transition: 0.3s;">
                     
                     ${state.userCode ? `
-                        <!-- Contenitore Principale -->
-                        <div style="position:relative; width:100%; height:100%; display:flex; align-items:center; justify-content:center;">
-                            
-                            <!-- QR Code centrato tra lato sinistro e centro -->
+                        <div style="position:relative; width:100%; height:100%; display:flex; align-items:center; justify-content:center; margin-top:${App.nav.inMenu ? '80px' : '0px'}; transition: 0.3s;">
                             <div style="position:absolute; left:25%; transform:translateX(-50%); background:white; padding:15px; border-radius:15px; box-shadow: 0 0 30px rgba(145, 70, 255, 0.3);">
                                 <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https://www.twitch.tv/activate?user_code=${state.userCode}" style="width:180px; height:180px; display:block;">
                             </div>
-
-                            <!-- Box Codice al centro esatto dello schermo -->
                             <div style="background:#18181b; padding:40px 60px; border-radius:30px; border:4px solid #bf94ff; box-shadow: 0 0 50px rgba(145, 70, 255, 0.2);">
                                 <div style="font-size:80px; font-weight:bold; letter-spacing:12px; margin-bottom:15px;">${state.userCode}</div>
                                 <div style="font-size:32px; color:#bf94ff; font-weight:bold; letter-spacing:2px;">twitch.tv/activate</div>
                             </div>
-
                         </div>
                     ` : `
-                        <div style="font-size:28px; color:#adadb8; font-weight:300; letter-spacing:2px;">${msg || App.t('loading').toUpperCase()}</div>
+                        <div style="display:flex; align-items:center; justify-content:center; height:100%;">
+                            <div style="font-size:28px; color:#adadb8; font-weight:300; letter-spacing:2px;">${msg || App.t('loading').toUpperCase()}</div>
+                        </div>
                     `}
                 </div>
             `;
@@ -133,32 +134,87 @@
             const viewArea = document.getElementById('main-view-area');
             if (!viewArea) return;
 
-            let userAvatar = 'icon.png';
+            // Usa la cache se disponibile per un rendering istantaneo
+            const cacheKey = 'profiles_data';
+            const cachedProfiles = App.stateCache[cacheKey];
+
+            if (cachedProfiles) {
+                // Rendering immediato dalla RAM per eliminare il loading
+                this.drawProfiles(viewArea, cachedProfiles);
+                // Aggiornamento silenzioso in background senza mostrare caricamenti
+                this.updateProfilesInBackground(viewArea, cacheKey);
+            } else {
+                // Prima volta in assoluto: mostriamo il loading al centro
+                viewArea.innerHTML = `<div style="display:flex; justify-content:center; align-items:center; height:100vh; width:100vw; font-size:24px; color:#adadb8;">${App.t('loading').toUpperCase()}</div>`;
+                const profiles = await this.fetchProfilesData();
+                App.stateCache[cacheKey] = profiles;
+                this.drawProfiles(viewArea, profiles);
+            }
+        },
+
+        fetchProfilesData: async function() {
+            const profilesWithAvatars = JSON.parse(JSON.stringify(App.profiles));
             try {
-                const res = await App.api.twitchFetch(`https://api.twitch.tv/helix/users?id=${App.auth.userId}`);
-                if (res && res.data && res.data[0]) {
-                    userAvatar = res.data[0].profile_image_url;
+                const ids = App.profiles.map(p => p.id).join('&id=');
+                if (ids) {
+                    const res = await App.api.twitchFetch(`https://api.twitch.tv/helix/users?id=${ids}`);
+                    if (res && res.data) {
+                        res.data.forEach(userData => {
+                            const p = profilesWithAvatars.find(prof => prof.id === userData.id);
+                            if (p) p.avatar = userData.profile_image_url;
+                        });
+                    }
                 }
-            } catch(e) {}
+            } catch(e) { console.error("Error fetching avatars", e); }
+            return profilesWithAvatars;
+        },
+
+        updateProfilesInBackground: async function(viewArea, cacheKey) {
+            const freshProfiles = await this.fetchProfilesData();
+            // Confronta se ci sono cambiamenti reali prima di ridisegnare per evitare sfarfallio
+            if (JSON.stringify(freshProfiles) !== JSON.stringify(App.stateCache[cacheKey])) {
+                App.stateCache[cacheKey] = freshProfiles;
+                // Ridisegna solo se siamo ancora in questa vista e non nel menu
+                if (!App.nav.inMenu) this.drawProfiles(viewArea, freshProfiles);
+            }
+        },
+
+        drawProfiles: function(viewArea, profiles) {
+            // Se il carosello esiste già, aggiorniamo solo le posizioni per permettere la transizione CSS
+            const existingTitle = document.getElementById('profile-title');
+            const existingCarousel = document.getElementById('profiles-carousel');
+
+            if (existingTitle && existingCarousel) {
+                existingTitle.style.top = App.nav.inMenu ? '140px' : '80px';
+                existingCarousel.style.marginTop = App.nav.inMenu ? '100px' : '0px';
+                this.updateSelection();
+                return;
+            }
 
             let html = `
-                <div style="display:flex; height:100%; color:white; padding-top:40px;">
-                    <div style="width:400px; display:flex; flex-direction:column; align-items:center; border-right:2px solid #303032; padding:0 40px;">
-                        <img src="${userAvatar}" style="width:200px; height:200px; border-radius:50%; border:4px solid #bf94ff; margin-bottom:20px;">
-                        <h2 style="font-size:32px; margin:0;">${App.profiles.find(p=>p.id === App.activeProfileId)?.login || 'Utente'}</h2>
-                    </div>
-                    <div style="flex:1; padding:0 60px;">
-                        <h3 style="font-size:26px; margin-bottom:30px; color:#adadb8;">${App.t('accounts_title')}</h3>
-                        <div id="profile-accounts-list">
-                            ${App.profiles.map((p, i) => `
-                                <div id="prof-opt-${i}" class="profile-opt" style="display:flex; justify-content:space-between; align-items:center; padding:20px 30px; margin-bottom:15px; background:#18181b; border-radius:8px; font-size:24px; border:3px solid transparent; transition:0.2s;">
-                                    <div style="font-weight:bold;">${p.login} ${p.id === App.activeProfileId ? '(Attivo)' : ''}</div>
-                                    <div style="color:#bf94ff; font-size:18px;">${p.id === App.activeProfileId ? 'OK per scollegare' : 'OK per passare'}</div>
+                <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; width:100vw; color:white; overflow:hidden; position:fixed; top:0; left:0;">
+                    <!-- Titolo adattivo con transizione sincronizzata (0.5s) -->
+                    <h2 id="profile-title" style="position:absolute; top:${App.nav.inMenu ? '140px' : '80px'}; font-size:38px; font-weight:bold; letter-spacing:2px; color:#efeff1; transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);">
+                        ${App.t('accounts_title').toUpperCase()}
+                    </h2>
+                    
+                    <!-- Carosello centrato con transizione sincronizzata (0.5s) -->
+                    <div id="profiles-carousel" style="display:flex; align-items:flex-start; justify-content:center; gap:50px; padding:20px; margin-top:${App.nav.inMenu ? '100px' : '0px'}; transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);">
+                        ${profiles.map((p, i) => `
+                            <div id="prof-opt-${i}" class="profile-card" style="display:flex; flex-direction:column; align-items:center; width:220px; transition:0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); position:relative;">
+                                <div class="avatar-container" style="width:180px; height:180px; border-radius:50%; border:6px solid ${p.id === App.activeProfileId ? '#bf94ff' : 'transparent'}; overflow:hidden; margin-bottom:25px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); transition: 0.3s;">
+                                    <img src="${p.avatar || 'icon.png'}" style="width:100%; height:100%; object-fit:cover;">
                                 </div>
-                            `).join('')}
-                            <div id="prof-opt-${App.profiles.length}" class="profile-opt" style="display:flex; justify-content:center; align-items:center; padding:20px 30px; margin-top:30px; background:#303032; border-radius:8px; font-size:24px; border:3px solid transparent; transition:0.2s;">
-                                + ${App.t('add_account')}
+                                <div style="font-size:26px; font-weight:bold; text-align:center; width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${p.login}</div>
+                                ${p.id === App.activeProfileId ? `<div style="position:absolute; top:-10px; right:20px; background:#bf94ff; color:white; width:35px; height:35px; display:flex; align-items:center; justify-content:center; border-radius:50%; font-size:20px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); border:3px solid #0e0e10;">✔</div>` : ''}
                             </div>
+                        `).join('')}
+                        
+                        <div id="prof-opt-${App.profiles.length}" class="profile-card" style="display:flex; flex-direction:column; align-items:center; width:220px; transition:0.3s;">
+                            <div class="avatar-container" style="width:180px; height:180px; border-radius:50%; background:#1f1f23; border:6px dashed #3a3a3d; display:flex; align-items:center; justify-content:center; margin-bottom:25px; transition: 0.3s;">
+                                <div style="font-size:80px; color:#adadb8; font-weight:100;">+</div>
+                            </div>
+                            <div style="font-size:26px; font-weight:bold; color:#adadb8;">${App.t('add_account').toUpperCase()}</div>
                         </div>
                     </div>
                 </div>
@@ -169,43 +225,66 @@
 
         updateSelection: function() {
             if (!App.auth.token) return;
-            document.querySelectorAll('.profile-opt').forEach((el, i) => {
+
+            document.querySelectorAll('.profile-card').forEach((el, i) => {
+                const container = el.querySelector('.avatar-container');
                 if (!App.nav.inMenu && i === state.activeRow) {
-                    el.style.borderColor = 'white';
-                    el.style.transform = 'scale(1.02)';
+                    el.style.transform = 'scale(1.15)';
+                    container.style.borderColor = 'white';
+                    container.style.boxShadow = '0 15px 40px rgba(145, 70, 255, 0.4)';
+                    el.style.zIndex = '10';
                 } else {
-                    el.style.borderColor = 'transparent';
                     el.style.transform = 'scale(1)';
+                    const isActuallyActive = i < App.profiles.length && App.profiles[i].id === App.activeProfileId;
+                    container.style.borderColor = isActuallyActive ? '#bf94ff' : 'transparent';
+                    container.style.boxShadow = '0 10px 30px rgba(0,0,0,0.5)';
+                    el.style.zIndex = '1';
                 }
             });
         },
 
         onMenuExit: function() {
-            this.updateSelection();
+            this.renderAuthenticated(); // Forza re-render per adattare il layout al menu nascosto
         },
 
         handleKey: function(e) {
+            // Se siamo nella schermata del codice
             if (!App.auth.token) {
-                // Blocco totale menu durante il login
+                // Permettiamo di tornare indietro solo se c'è almeno un account salvato
+                if (App.profiles.length > 0) {
+                    if (e.keyCode === 8 || e.keyCode === 27 || e.keyCode === 461 || e.keyCode === 10009) {
+                        state.isPolling = false;
+                        clearInterval(state.pollInterval);
+                        App.authManager.loadProfiles();
+                        this.renderAuthenticated();
+                        return;
+                    }
+                }
                 return;
             }
 
             const maxRow = App.profiles.length;
-            if (e.keyCode === 40 && state.activeRow < maxRow) { state.activeRow++; this.updateSelection(); }
-            if (e.keyCode === 38 && state.activeRow > 0) { state.activeRow--; this.updateSelection(); }
-            if (e.keyCode === 38 && state.activeRow === 0) { App.nav.inMenu = true; App.nav.update(); this.updateSelection(); }
+
+            if (e.keyCode === 39 && state.activeRow < maxRow) { state.activeRow++; this.updateSelection(); }
+            if (e.keyCode === 37 && state.activeRow > 0) { state.activeRow--; this.updateSelection(); }
+            if (e.keyCode === 38) { 
+                App.nav.inMenu = true; 
+                App.nav.update(); 
+                this.renderAuthenticated(); // Adatta il layout alla comparsa del menu
+            }
             
             if (e.keyCode === 13) {
                 if (state.activeRow < App.profiles.length) {
                     const clickedProfile = App.profiles[state.activeRow];
-                    if (clickedProfile.id === App.activeProfileId) {
-                        App.authManager.logout();
-                    } else {
-                        App.activeProfileId = clickedProfile.id;
-                        localStorage.setItem('active_profile_id', App.activeProfileId);
-                        App.authManager.loadProfiles();
-                        this.renderAuthenticated();
-                    }
+                    App.activeProfileId = clickedProfile.id;
+                    localStorage.setItem('active_profile_id', App.activeProfileId);
+                    App.authManager.loadProfiles();
+                    
+                    // Vai in Home MENU (menu attivo)
+                    App.nav.focusIndex = 1; // Home
+                    App.nav.inMenu = true;
+                    App.nav.update();
+                    App.nav.navigateTo('home');
                 } else {
                     state.isPolling = false;
                     clearInterval(state.pollInterval);
@@ -215,7 +294,9 @@
             }
 
             if (e.keyCode === 8 || e.keyCode === 27 || e.keyCode === 461 || e.keyCode === 10009) {
-                App.nav.inMenu = true; App.nav.update(); this.updateSelection();
+                App.nav.inMenu = true; 
+                App.nav.update(); 
+                this.renderAuthenticated();
             }
         },
 
