@@ -118,7 +118,7 @@ window.App = {
             status_ok: 'Tous les systèmes sont opérationnels',
             accounts_title: 'Comptes', add_account: 'ajouter un compte',
             viewers: 'spectateurs', followers: 'abonnés', streams: 'Streams', clips: 'Clips',
-            days_7: '7 Jours', days_30: '30 Jours',
+            days_7: '7 Jours', days_30: '30 Jours', followers: 'Abonnés',
             no_live: 'Aucune chaîne suivie n\'est en direct pour le moment.',
             exit_title: 'Quitter l\'application ?', exit_cancel: 'Annuler', exit_confirm: 'Quitter',
             search_placeholder: 'Rechercher des chaînes ou catégories...',
@@ -189,7 +189,7 @@ window.App = {
 
             const topbar = document.getElementById('topbar');
             if (topbar) {
-                if (!App.nav.inMenu && App.nav.focusIndex !== 0) { 
+                if (!App.nav.inMenu) { 
                     topbar.classList.add('hidden-topbar');
                     document.body.classList.add('menu-hidden');
                 } else {
@@ -453,4 +453,4 @@ window.App = {
     }
 };
 
-window.onload = () => App.init();init();p.init();
+window.onload = () => App.init();

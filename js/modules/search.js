@@ -385,8 +385,16 @@
                             App.modules.category.open(item);
                         }
                     });
+                } else if (currentRow.type === 'channel') {
+                    const login = item.broadcaster_login || item.user_login || item.display_name || item.login;
+                    App.nav.navigateTo('channel').then(() => {
+                        if (App.modules.channel && App.modules.channel.openChannelView) {
+                            App.modules.channel.openChannelView(login);
+                        }
+                    });
                 } else {
-                    const login = item.broadcaster_login || item.user_login || item.display_name;
+                    // Type 'live'
+                    const login = item.broadcaster_login || item.user_login || item.display_name || item.user_name;
                     App.nav.navigateTo('player').then(() => {
                         if (App.modules.player && App.modules.player.openNativePlayer) {
                             App.modules.player.openNativePlayer(login, item.id || '', item.title || '');
