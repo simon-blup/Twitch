@@ -6,17 +6,17 @@ window.App = {
     previousModule: null,
     stateCache: {}, // RAM Cache for restoring views
     apiCache: {}, // RAM Cache for API responses
-    
+
     settings: {
-        barPos: 'center', theme: 'dark', performanceMode: false, 
-        notifications: true, adBlock: true, language: 'English', 
+        barPos: 'center', theme: 'dark', performanceMode: false,
+        notifications: true, adBlock: true, language: 'English',
         showFollowedAvatars: true
     },
-    
+
     profiles: [],
     activeProfileId: '',
     auth: { token: '', refresh: '', userId: '' },
-    
+
     i18n: {
         'English': {
             menu_search: 'Search', menu_home: 'Home', menu_follow: 'Followed', menu_settings: 'Settings', menu_profile: 'Profile',
@@ -132,14 +132,14 @@ window.App = {
             setting_avatars_desc: 'Affiche les icônes des streamers suivis. Peut augmenter le temps de chargement.'
         }
     },
-    
-    t: function(key) {
+
+    t: function (key) {
         const lang = App.settings.language || 'English';
         return App.i18n[lang][key] || App.i18n['English'][key] || key;
     },
 
     loader: {
-        load: function(moduleName) {
+        load: function (moduleName) {
             return new Promise((resolve, reject) => {
                 if (App.modules[moduleName]) return resolve();
                 const script = document.createElement('script');
@@ -150,7 +150,7 @@ window.App = {
                 document.body.appendChild(script);
             });
         },
-        unload: function(moduleName) {
+        unload: function (moduleName) {
             if (App.modules[moduleName]) {
                 if (App.modules[moduleName].destroy) {
                     App.modules[moduleName].destroy(); // Moduli devono solo fare innerHTML = ''
@@ -167,8 +167,8 @@ window.App = {
         focusIndex: 1, // 0: Search, 1: Home, 2: Follow, 3: Settings, 4: Profile
         inMenu: true,
         menuMap: ['search', 'home', 'follow', 'settings', 'profile'],
-        
-        update: function() {
+
+        update: function () {
             const menuItems = document.querySelectorAll('.menu-item');
             const indicator = document.getElementById('nav-indicator');
             const active = menuItems[App.nav.focusIndex];
@@ -180,7 +180,7 @@ window.App = {
                 indicator.style.width = active.offsetWidth + 'px';
                 indicator.style.left = active.offsetLeft + 'px';
             }
-            
+
             menuItems.forEach((m, i) => {
                 m.classList.toggle('active-text', i === App.nav.focusIndex);
                 if (m.id === 'menu-home') m.innerText = App.t('menu_home');
@@ -190,7 +190,7 @@ window.App = {
 
             const topbar = document.getElementById('topbar');
             if (topbar) {
-                if (!App.nav.inMenu) { 
+                if (!App.nav.inMenu) {
                     topbar.classList.add('hidden-topbar');
                     document.body.classList.add('menu-hidden');
                 } else {
@@ -198,7 +198,7 @@ window.App = {
                     document.body.classList.remove('menu-hidden');
                 }
             }
-            
+
             if (searchDropdown && searchInput) {
                 searchInput.placeholder = App.t('search_placeholder');
                 const isOnLens = App.nav.focusIndex === 0 && App.nav.inMenu;
@@ -211,18 +211,18 @@ window.App = {
                 }
             }
         },
-        
-        navigateTo: async function(moduleName) {
+
+        navigateTo: async function (moduleName) {
             const isRestore = App.modules[moduleName] !== undefined; // Se è già in RAM, è un restore
-            
+
             if (App.currentModule && App.currentModule !== moduleName) {
                 App.previousModule = App.currentModule;
                 App.loader.unload(App.currentModule);
             }
-            
+
             App.currentModule = moduleName;
             await App.loader.load(moduleName);
-            
+
             if (!isRestore && App.modules[moduleName] && App.modules[moduleName].init) {
                 App.modules[moduleName].init(); // Solo alla prima creazione
             }
@@ -233,7 +233,7 @@ window.App = {
     },
 
     api: {
-        twitchFetch: async function(url, options = {}, ttlSeconds = 0) {
+        twitchFetch: async function (url, options = {}, ttlSeconds = 0) {
             if (ttlSeconds > 0) {
                 const cached = App.apiCache[url];
                 if (cached && (Date.now() - cached.timestamp < ttlSeconds * 1000)) {
@@ -252,7 +252,7 @@ window.App = {
                 res = await fetch(url, options);
             }
             const data = await res.json();
-            
+
             if (ttlSeconds > 0) {
                 App.apiCache[url] = { timestamp: Date.now(), data: data };
             }
@@ -261,11 +261,11 @@ window.App = {
     },
 
     authManager: {
-        loadProfiles: function() {
+        loadProfiles: function () {
             App.profiles = JSON.parse(localStorage.getItem('twitch_profiles')) || [];
             App.activeProfileId = localStorage.getItem('active_profile_id') || '';
             const profile = App.profiles.find(p => p.id === App.activeProfileId) || App.profiles[0];
-            
+
             if (profile) {
                 App.auth.token = profile.token;
                 App.auth.refresh = profile.refresh;
@@ -277,7 +277,7 @@ window.App = {
                 App.activeProfileId = '';
             }
         },
-        refreshToken: async function() {
+        refreshToken: async function () {
             if (!App.auth.refresh) {
                 await App.authManager.logout();
                 return;
@@ -292,7 +292,7 @@ window.App = {
                 if (data.access_token) {
                     App.auth.token = data.access_token;
                     App.auth.refresh = data.refresh_token || App.auth.refresh;
-                    
+
                     if (App.activeProfileId) {
                         const profIndex = App.profiles.findIndex(p => p.id === App.activeProfileId);
                         if (profIndex !== -1) {
@@ -308,11 +308,11 @@ window.App = {
                 await App.authManager.logout();
             }
         },
-        logout: async function() {
+        logout: async function () {
             if (App.activeProfileId) {
                 App.profiles = App.profiles.filter(p => p.id !== App.activeProfileId);
                 localStorage.setItem('twitch_profiles', JSON.stringify(App.profiles));
-                
+
                 if (App.profiles.length > 0) {
                     App.activeProfileId = App.profiles[0].id;
                     localStorage.setItem('active_profile_id', App.activeProfileId);
@@ -329,7 +329,7 @@ window.App = {
     },
 
     utils: {
-        getThumbSize: function(type) {
+        getThumbSize: function (type) {
             if (App.settings.performanceMode) {
                 if (type === 'stream') return { w: 400, h: 225 };
                 if (type === 'category') return { w: 150, h: 200 };
@@ -338,23 +338,23 @@ window.App = {
             if (type === 'stream') return { w: 800, h: 450 };
             if (type === 'category') return { w: 300, h: 400 };
             if (type === 'avatar') return { w: 300, h: 300 };
-            return { w: 600, h: 338 }; 
+            return { w: 600, h: 338 };
         },
-        getSafeThumb: function(url, type) {
+        getSafeThumb: function (url, type) {
             if (!url) return 'icon.png';
             const size = App.utils.getThumbSize(type);
             return url.replace(/-[0-9]+x[0-9]+\./, `-${size.w}x${size.h}.`)
-                      .replace('{width}', size.w).replace('{height}', size.h)
-                      .replace('%{width}', size.w).replace('%{height}', size.h);
+                .replace('{width}', size.w).replace('{height}', size.h)
+                .replace('%{width}', size.w).replace('%{height}', size.h);
         },
-        formatViewers: function(count) {
+        formatViewers: function (count) {
             if (count >= 1000000) return (count / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
             else if (count >= 1000) return (count / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
             return count.toString();
         },
-        applySettings: function() {
+        applySettings: function () {
             const topbarMenu = document.getElementById('main-menu');
-            if(topbarMenu) {
+            if (topbarMenu) {
                 if (App.settings.barPos === 'center') {
                     topbarMenu.style.justifyContent = 'center';
                     topbarMenu.style.paddingLeft = '0px';
@@ -365,17 +365,17 @@ window.App = {
             }
             if (App.settings.theme === 'light') document.body.classList.add('theme-light');
             else document.body.classList.remove('theme-light');
-            
+
             if (App.settings.performanceMode) document.body.classList.add('perf-mode');
             else document.body.classList.remove('perf-mode');
         },
-        saveSettings: function() {
+        saveSettings: function () {
             localStorage.setItem('twitch_settings', JSON.stringify(App.settings));
             App.utils.applySettings();
         }
     },
 
-    init: async function() {
+    init: async function () {
         // Load Settings
         const storedSettings = JSON.parse(localStorage.getItem('twitch_settings'));
         if (storedSettings) Object.assign(App.settings, storedSettings);
@@ -407,7 +407,7 @@ window.App = {
             App.nav.focusIndex = 4; // profile
             App.nav.inMenu = false;
         }
-        
+
         App.nav.update();
         const startModule = App.nav.menuMap[App.nav.focusIndex];
         await App.nav.navigateTo(startModule);
@@ -416,29 +416,29 @@ window.App = {
         document.addEventListener('keydown', App.handleGlobalKey);
     },
 
-    handleGlobalKey: function(e) {
+    handleGlobalKey: function (e) {
         // Intercept Top Menu navigation if inMenu is true
         if (App.nav.inMenu && App.currentModule !== 'player') {
             const maxIdx = App.nav.menuMap.length - 1;
-            
+
             // Mandatory Login Lock
             if (!App.auth.token && App.nav.focusIndex !== 4) {
                 App.nav.focusIndex = 4;
                 App.nav.update();
             }
 
-            if (e.keyCode === 39 && App.nav.focusIndex < maxIdx) { 
-                App.nav.focusIndex++; App.nav.update(); App.nav.navigateTo(App.nav.menuMap[App.nav.focusIndex]); 
+            if (e.keyCode === 39 && App.nav.focusIndex < maxIdx) {
+                App.nav.focusIndex++; App.nav.update(); App.nav.navigateTo(App.nav.menuMap[App.nav.focusIndex]);
                 return;
             }
-            if (e.keyCode === 37 && App.nav.focusIndex > 0) { 
-                App.nav.focusIndex--; App.nav.update(); App.nav.navigateTo(App.nav.menuMap[App.nav.focusIndex]); 
+            if (e.keyCode === 37 && App.nav.focusIndex > 0) {
+                App.nav.focusIndex--; App.nav.update(); App.nav.navigateTo(App.nav.menuMap[App.nav.focusIndex]);
                 return;
             }
-            if (e.keyCode === 40) { 
-                App.nav.inMenu = false; 
-                App.nav.update(); 
-                
+            if (e.keyCode === 40) {
+                App.nav.inMenu = false;
+                App.nav.update();
+
                 // allow module to handle the transition if needed
                 if (App.modules[App.currentModule] && App.modules[App.currentModule].onMenuExit) {
                     App.modules[App.currentModule].onMenuExit(e);
@@ -446,7 +446,7 @@ window.App = {
                 return;
             }
         }
-        
+
         // Delegate to current module
         if (App.modules[App.currentModule] && App.modules[App.currentModule].handleKey) {
             App.modules[App.currentModule].handleKey(e);
