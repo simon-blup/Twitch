@@ -268,6 +268,9 @@
             if (e.keyCode === 39 && state.activeRow < maxRow) { state.activeRow++; this.updateSelection(); }
             if (e.keyCode === 37 && state.activeRow > 0) { state.activeRow--; this.updateSelection(); }
             if (e.keyCode === 38) {
+                if (App.isStartupProfileSelect) {
+                    return; // Blocca l'apertura del menu all'avvio
+                }
                 App.nav.inMenu = true;
                 App.nav.update();
                 this.renderAuthenticated(); // Adatta il layout alla comparsa del menu
@@ -279,6 +282,8 @@
                     App.activeProfileId = clickedProfile.id;
                     localStorage.setItem('active_profile_id', App.activeProfileId);
                     App.authManager.loadProfiles();
+
+                    App.isStartupProfileSelect = false; // Avvio completato
 
                     // Vai in Home MENU (menu attivo)
                     App.nav.focusIndex = 1; // Home
@@ -294,6 +299,12 @@
             }
 
             if (e.keyCode === 8 || e.keyCode === 27 || e.keyCode === 461 || e.keyCode === 10009) {
+                if (App.isStartupProfileSelect) {
+                    if (App.ExitMenu) {
+                        App.ExitMenu.show();
+                    }
+                    return;
+                }
                 App.nav.inMenu = true;
                 App.nav.update();
                 this.renderAuthenticated();

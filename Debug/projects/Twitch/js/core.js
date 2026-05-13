@@ -163,6 +163,59 @@ window.App = {
         }
     },
 
+    ExitMenu: {
+        active: false,
+        focusIdx: 0,
+        show: function() {
+            this.active = true;
+            this.focusIdx = 0; // Default to Cancel
+            const container = document.getElementById('exit-menu-container');
+            if (container) container.classList.remove('hidden');
+            this.update();
+        },
+        hide: function() {
+            this.active = false;
+            const container = document.getElementById('exit-menu-container');
+            if (container) container.classList.add('hidden');
+        },
+        update: function() {
+            const btnCancel = document.getElementById('btn-exit-cancel');
+            const btnConfirm = document.getElementById('btn-exit-confirm');
+            const exitTitle = document.querySelector('.exit-title');
+
+            if (exitTitle) exitTitle.innerText = App.t('exit_title');
+            if (btnCancel) {
+                btnCancel.innerText = App.t('exit_cancel');
+                btnCancel.classList.toggle('focused', this.focusIdx === 0);
+            }
+            if (btnConfirm) {
+                btnConfirm.innerText = App.t('exit_confirm');
+                btnConfirm.classList.toggle('focused', this.focusIdx === 1);
+            }
+        },
+        handleKey: function(e) {
+            if (e.keyCode === 37) { // Left
+                this.focusIdx = 0;
+                this.update();
+            } else if (e.keyCode === 39) { // Right
+                this.focusIdx = 1;
+                this.update();
+            } else if (e.keyCode === 13) { // Enter
+                if (this.focusIdx === 0) {
+                    this.hide();
+                } else if (this.focusIdx === 1) {
+                    if (typeof tizen !== 'undefined') {
+                        tizen.application.getCurrentApplication().exit();
+                    } else {
+                        window.close();
+                    }
+                }
+            } else if (e.keyCode === 8 || e.keyCode === 27 || e.keyCode === 461 || e.keyCode === 10009) {
+                this.hide();
+            }
+        }
+    },
+
     nav: {
         focusIndex: 1, // 0: Search, 1: Home, 2: Follow, 3: Settings, 4: Profile
         inMenu: true,
@@ -403,10 +456,9 @@ window.App = {
         if (splash) splash.classList.add('hidden');
 
         // Initial Route
-        if (!App.auth.token) {
-            App.nav.focusIndex = 4; // profile
-            App.nav.inMenu = false;
-        }
+        App.isStartupProfileSelect = true; // Impone la scelta iniziale
+        App.nav.focusIndex = 4; // profile
+        App.nav.inMenu = false; // menu nascosto all'avvio
 
         App.nav.update();
         const startModule = App.nav.menuMap[App.nav.focusIndex];
@@ -417,6 +469,11 @@ window.App = {
     },
 
     handleGlobalKey: function (e) {
+        if (App.ExitMenu && App.ExitMenu.active) {
+            App.ExitMenu.handleKey(e);
+            return;
+        }
+
         // Intercept Top Menu navigation if inMenu is true
         if (App.nav.inMenu && App.currentModule !== 'player') {
             const maxIdx = App.nav.menuMap.length - 1;
@@ -442,6 +499,12 @@ window.App = {
                 // allow module to handle the transition if needed
                 if (App.modules[App.currentModule] && App.modules[App.currentModule].onMenuExit) {
                     App.modules[App.currentModule].onMenuExit(e);
+                }
+                return;
+            }
+            if (e.keyCode === 8 || e.keyCode === 27 || e.keyCode === 461 || e.keyCode === 10009) {
+                if (App.ExitMenu) {
+                    App.ExitMenu.show();
                 }
                 return;
             }
