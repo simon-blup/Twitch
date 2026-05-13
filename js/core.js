@@ -16,6 +16,93 @@ window.App = {
     profiles: [],
     activeProfileId: '',
     auth: { token: '', refresh: '', userId: '' },
+    notifications: {
+        lastLiveStreamIds: new Set(),
+        isFirstCheck: true,
+        pollInterval: null,
+
+        init: function() {
+            if (this.pollInterval) clearInterval(this.pollInterval);
+            this.isFirstCheck = true;
+            this.lastLiveStreamIds = new Set();
+            
+            // Start polling every 30 seconds
+            this.pollInterval = setInterval(() => this.check(), 30000);
+            // Initial check after 5 seconds
+            setTimeout(() => this.check(), 5000);
+        },
+
+        check: async function() {
+            if (!App.auth.token || !App.auth.userId || !App.settings.notifications) return;
+            
+            try {
+                const res = await App.api.twitchFetch(`https://api.twitch.tv/helix/streams/followed?user_id=${App.auth.userId}&first=100`);
+                const currentStreams = res.data || [];
+                const currentIds = new Set(currentStreams.map(s => s.user_id));
+
+                if (this.isFirstCheck) {
+                    this.lastLiveStreamIds = currentIds;
+                    this.isFirstCheck = false;
+                    return;
+                }
+
+                const newLiveStreams = currentStreams.filter(s => !this.lastLiveStreamIds.has(s.user_id));
+
+                if (newLiveStreams.length > 0) {
+                    // Fetch profile images for new live streamers
+                    const userIds = newLiveStreams.map(s => `id=${s.user_id}`).join('&');
+                    const userRes = await App.api.twitchFetch(`https://api.twitch.tv/helix/users?${userIds}`);
+                    const userData = userRes.data || [];
+
+                    newLiveStreams.forEach(stream => {
+                        const user = userData.find(u => u.id === stream.user_id);
+                        const profileImg = user ? user.profile_image_url : null;
+                        this.show(stream.user_name, stream.title, profileImg);
+                    });
+                }
+
+                this.lastLiveStreamIds = currentIds;
+            } catch (e) {
+                console.error("Error checking live followed streams:", e);
+            }
+        },
+
+        show: function(userName, title, profileImg) {
+            const container = document.getElementById('notification-container');
+            if (!container) return;
+
+            const notif = document.createElement('div');
+            notif.className = 'notification';
+
+            let iconHtml = `
+                <div class="notification-icon">
+                    <svg viewBox="0 0 24 24" width="30" height="30" fill="white">
+                        <path d="M2.149 0l-1.612 4.119v16.836h5.731v3.045h3.224l3.045-3.045h4.657l6.269-6.269v-14.686h-21.314zm19.164 13.612l-3.582 3.582h-5.731l-3.045 3.045v-3.045h-4.836v-15.045h17.194v11.463zm-3.582-7.343v4.836h-2.149v-4.836h2.149zm-5.731 0v4.836h-2.149v-4.836h2.149z" />
+                    </svg>
+                </div>`;
+
+            if (profileImg) {
+                iconHtml = `<img src="${profileImg}" class="notification-avatar">`;
+            }
+
+            notif.innerHTML = `
+                ${iconHtml}
+                <div class="notification-content">
+                    <div class="notification-title">${userName} is now LIVE!</div>
+                    <div class="notification-msg">${title}</div>
+                </div>
+            `;
+
+            container.appendChild(notif);
+
+            // Auto remove from DOM after animation
+            setTimeout(() => {
+                if (notif.parentNode) {
+                    notif.parentNode.removeChild(notif);
+                }
+            }, 6500);
+        }
+    },
 
     i18n: {
         'English': {
@@ -449,6 +536,9 @@ window.App = {
                     const data = await response.json();
                     App.auth.userId = data.user_id;
                 }
+
+                // Start notifications if logged in
+                App.notifications.init();
             } catch (error) { console.error("Validation error:", error); }
         }
 

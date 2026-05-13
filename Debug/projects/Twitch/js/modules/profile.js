@@ -84,6 +84,10 @@
                         localStorage.setItem('active_profile_id', App.activeProfileId);
 
                         App.authManager.loadProfiles();
+                        
+                        if (App.notifications && typeof App.notifications.init === 'function') {
+                            App.notifications.init();
+                        }
 
                         // Navigazione in Home con MENU ATTIVO
                         App.nav.focusIndex = 1; // Home
@@ -282,6 +286,10 @@
                     App.activeProfileId = clickedProfile.id;
                     localStorage.setItem('active_profile_id', App.activeProfileId);
                     App.authManager.loadProfiles();
+                    
+                    if (App.notifications && typeof App.notifications.init === 'function') {
+                        App.notifications.init();
+                    }
 
                     App.isStartupProfileSelect = false; // Avvio completato
 

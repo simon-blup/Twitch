@@ -24,6 +24,7 @@
         ],
         [ // System
             { id: 'performanceMode', type: 'toggle', label: 'setting_perf' },
+            { id: 'notifications', type: 'toggle', label: 'setting_notifications' },
             { id: 'adBlock', type: 'toggle', label: 'setting_adblock' },
             { id: 'language', type: 'select', label: 'setting_lang', values: ['English', 'Italiano', 'Español', '中文', 'Français'] },
             { id: 'logout', type: 'action', label: 'setting_remove', color: 'danger' }
