@@ -2,7 +2,7 @@
 <widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="http://yourdomain/Twitch" version="0.2.1" viewmodes="maximized">
     <access origin="*" subdomains="true"></access>
     <tizen:application id="m6vA0e4nky.Twitch" package="m6vA0e4nky" required_version="2.3"/>
-    <content src="https://simon-blup.github.io/Twitch/"/>
+    <content src="https://simon-blup.github.io/Twitch/index.html"/>
     <feature name="http://tizen.org/feature/screen.size.normal.1080.1920"/>
     <icon src="icon.png"/>
     <tizen:metadata key="http://samsung.com/tv/metadata/prelaunch.support" value="true"/>

@@ -257,8 +257,10 @@
                         let cardWidth = activeCard.offsetWidth + 30; // 30 is gap
                         let offset = - (state.activeCol * cardWidth);
                         rowDiv.style.transform = `translateX(${offset}px)`;
+                        
+                        // Scroll the row container into view vertically, not the card, to avoid horizontal scrolling conflicts
+                        rowDiv.parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     }
-                    activeCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
             }
         },
