@@ -1,15 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="http://yourdomain/Twitch" version="0.2.1" viewmodes="maximized">
-    <access origin="*" subdomains="true"></access>
-    <tizen:application id="m6vA0e4nky.Twitch" package="m6vA0e4nky" required_version="2.3"/>
-    <content src="https://simon-blup.github.io/Twitch/index.html"/>
-    <feature name="http://tizen.org/feature/screen.size.normal.1080.1920"/>
-    <icon src="icon.png"/>
-    <tizen:metadata key="http://samsung.com/tv/metadata/prelaunch.support" value="true"/>
-    <tizen:metadata key="http://tizen.org/metadata/app_ui_type/base_screen_resolution" value="extensive"/>
-    <name>Twitch</name>
-    <tizen:privilege name="http://tizen.org/privilege/application.launch"/>
-    <tizen:privilege name="http://tizen.org/privilege/internet"/>
-    <tizen:profile name="tv-samsung"/>
-    <tizen:setting screen-orientation="landscape" context-menu="enable" background-support="disable" encryption="disable" install-location="auto" hwkey-event="enable"/>
+   <name>Twitch</name>
+   <icon src="icon.png"></icon>
+   <content src="index.html"></content>
+   <feature name="http://tizen.org/feature/screen.size.normal.1080.1920"></feature>
+   <tizen:setting screen-orientation="landscape" context-menu="enable" background-support="disable" encryption="disable" install-location="auto" hwkey-event="enable"></tizen:setting>
+   <tizen:application id="m6vA0e4nky.Twitch" package="m6vA0e4nky" required_version="2.3"></tizen:application>
+   <tizen:privilege name="http://tizen.org/privilege/application.launch"></tizen:privilege>
+   <tizen:metadata key="http://samsung.com/tv/metadata/prelaunch.support" value="true"></tizen:metadata>
+   <tizen:metadata key="http://tizen.org/metadata/app_ui_type/base_screen_resolution" value="extensive"></tizen:metadata>
+   <tizen:profile name="tv-samsung"></tizen:profile>
+   <tizen:privilege name="http://tizen.org/privilege/internet"/>
+   <access origin="*" subdomains="true"/>
 </widget>

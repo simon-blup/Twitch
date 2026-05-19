@@ -1213,3 +1213,18 @@ body.theme-light .notification-msg {
     align-items: center;
     gap: 15px;
 }
+
+.player-chat-panel { 
+    position: absolute; 
+    right: 0; 
+    top: 0; 
+    width: 450px; 
+    height: 100%; 
+    background: #18181b; 
+    border-left: 1px solid #333; 
+    z-index: 1002; 
+    transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1); 
+}
+.player-chat-panel.hidden { 
+    transform: translateX(100%); 
+}
