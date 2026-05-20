@@ -1,8 +1,8 @@
 (function() {
-    let state = {
+    var state = {
         inPlayer: false,
         uiTimeout: null,
-        playerFocusIndex: 0, // 0: Play, 1: Chat, 2: Quality, 3: Channel
+        playerFocusIndex: 0, 
         playerBtns: ['btn-play', 'btn-chat', 'btn-quality', 'btn-goto-channel'],
         isPlaying: true,
         isQualityMenuOpen: false,
@@ -14,137 +14,114 @@
         currentStreamTitle: "",
         currentVideoUrl: "",
         bufferingWatchdog: null,
-        retryCount: 0
+        retryCount: 0,
+        isClip: false
     };
 
     App.modules.player = {
-        init: function() {
-            // Player doesn't need heavy initial state reset like others since it re-initializes on open
-        },
+        init: function() {},
 
-        load: async function() {
-            // Usually player is triggered via openNativePlayer, not directly via nav
-        },
+        load: function() { return Promise.resolve(); },
 
-        getStreamM3u8: async function(channel) {
-            try {
-                // 1. Usa il client-id pubblico Web di Twitch per bypassare blocchi OAuth sullo streaming
-                const gqlBody = {
-                    operationName: 'PlaybackAccessToken_Template',
-                    query: `query PlaybackAccessToken_Template($login: String!, $playerType: String!) {  streamPlaybackAccessToken(channelName: $login, params: {platform: "web", playerBackend: "mediaplayer", playerType: $playerType}) { value signature } }`,
-                    variables: { login: channel, playerType: 'site' }
-                };
+        getStreamM3u8: function(channel) {
+            var self = this;
+            var gqlBody = {
+                operationName: 'PlaybackAccessToken_Template',
+                query: 'query PlaybackAccessToken_Template($login: String!, $playerType: String!) {  streamPlaybackAccessToken(channelName: $login, params: {platform: "web", playerBackend: "mediaplayer", playerType: $playerType}) { value signature } }',
+                variables: { login: channel, playerType: 'site' }
+            };
 
-                let headers = { 'Client-ID': 'kimne78kx3ncx6brgo4mv6wki5h1ko', 'Content-Type': 'application/json' };
+            var headers = { 'Client-ID': 'kimne78kx3ncx6brgo4mv6wki5h1ko', 'Content-Type': 'application/json' };
 
-                const tokenRes = await fetch('https://gql.twitch.tv/gql', {
-                    method: 'POST',
-                    headers: headers,
-                    body: JSON.stringify(gqlBody)
-                });
+            return fetch('https://gql.twitch.tv/gql', {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(gqlBody)
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(tokenData) {
+                if (tokenData.errors && tokenData.errors.length > 0) throw new Error("GQL Error: " + tokenData.errors[0].message);
+                var accessToken = tokenData.data.streamPlaybackAccessToken;
+                var value = accessToken.value;
+                var signature = accessToken.signature;
+
+                var originalUsherUrl = 'https://usher.ttvnw.net/api/channel/hls/' + channel + '.m3u8?allow_source=true&sig=' + signature + '&token=' + encodeURIComponent(value) + '&reassignments_supported=true&playlist_include_framerate=true&p=' + Math.random();
+                var m3u8Url = originalUsherUrl;
                 
-                const tokenData = await tokenRes.json();
-                
-                if (tokenData.errors && tokenData.errors.length > 0) {
-                    throw new Error("GQL Error: " + tokenData.errors[0].message);
-                }
+                var promise = App.settings.adBlock ? 
+                    fetch('https://lb-eu.cdn-perfprod.com/live/' + channel + '?allow_source=true&sig=' + signature + '&token=' + encodeURIComponent(value) + '&reassignments_supported=true&playlist_include_framerate=true')
+                    .then(function(r) { return r.ok ? r : fetch(originalUsherUrl); })
+                    .catch(function() { return fetch(originalUsherUrl); }) :
+                    fetch(originalUsherUrl);
 
-                if (!tokenData.data || !tokenData.data.streamPlaybackAccessToken) {
-                    throw new Error("No token in GQL response");
-                }
+                return promise.then(function(res) {
+                    if (!res.ok) throw new Error('Usher HTTP ' + res.status);
+                    return res.text();
+                }).then(function(m3u8Text) {
+                    var lines = m3u8Text.split('\n');
+                    var streams = [{ name: 'Auto', url: m3u8Url }];
+                    var currentName = null;
+                    var mediaMap = {};
 
-                const { value, signature } = tokenData.data.streamPlaybackAccessToken;
-
-                // 2. Componi e Leggi il file M3U8 Master da Usher
-                const originalUsherUrl = `https://usher.ttvnw.net/api/channel/hls/${channel}.m3u8?allow_source=true&sig=${signature}&token=${encodeURIComponent(value)}&reassignments_supported=true&playlist_include_framerate=true&p=${Math.random()}`;
-                let m3u8Url = originalUsherUrl;
-                
-                // --- AD BLOCK LOGIC CON FALLBACK ---
-                let m3u8Res;
-                if (App.settings.adBlock) {
-                    try {
-                        const proxyUrl = `https://lb-eu.cdn-perfprod.com/live/${channel}?allow_source=true&sig=${signature}&token=${encodeURIComponent(value)}&reassignments_supported=true&playlist_include_framerate=true`;
-                        m3u8Res = await fetch(proxyUrl);
-                        if (!m3u8Res.ok) {
-                            console.warn(`Ad-Block Proxy returned ${m3u8Res.status}, falling back...`);
-                            m3u8Res = await fetch(originalUsherUrl);
+                    lines.forEach(function(line) {
+                        if (line.indexOf('#EXT-X-MEDIA:TYPE=VIDEO') === 0) {
+                            var groupIdMatch = line.match(/GROUP-ID="([^"]+)"/);
+                            var nameMatch = line.match(/NAME="([^"]+)"/);
+                            if (groupIdMatch && nameMatch) {
+                                mediaMap[groupIdMatch[1]] = nameMatch[1].replace(/\(source\)/gi, '').trim();
+                            }
                         }
-                    } catch (proxyErr) {
-                        console.warn("Ad-Block Proxy fetch failed, falling back to Usher:", proxyErr);
-                        m3u8Res = await fetch(originalUsherUrl);
-                    }
-                } else {
-                    m3u8Res = await fetch(originalUsherUrl);
-                }
-                
-                if (!m3u8Res.ok) {
-                    throw new Error(`Usher HTTP ${m3u8Res.status}`);
-                }
-                
-                const m3u8Text = await m3u8Res.text();
+                    });
 
-                // 3. Estrai le varianti (Risoluzioni)
-                const lines = m3u8Text.split('\n');
-                const streams = [{ name: 'Auto', url: m3u8Url }];
-                let currentName = null;
-                let mediaMap = {};
-
-                lines.forEach(line => {
-                    if (line.startsWith('#EXT-X-MEDIA:TYPE=VIDEO')) {
-                        const groupIdMatch = line.match(/GROUP-ID="([^"]+)"/);
-                        const nameMatch = line.match(/NAME="([^"]+)"/);
-                        if (groupIdMatch && nameMatch) {
-                            let cleanName = nameMatch[1].replace(/\(source\)/gi, '').trim();
-                            mediaMap[groupIdMatch[1]] = cleanName;
+                    lines.forEach(function(line) {
+                        if (line.indexOf('#EXT-X-STREAM-INF') === 0) {
+                            var videoMatch = line.match(/VIDEO="([^"]+)"/);
+                            var groupId = videoMatch ? videoMatch[1] : null;
+                            currentName = groupId && mediaMap[groupId] ? mediaMap[groupId] : (groupId || 'Unknown');
+                        } else if (line.indexOf('http') === 0 && currentName) {
+                            streams.push({ name: currentName, url: line });
+                            currentName = null;
                         }
-                    }
-                });
+                    });
 
-                lines.forEach(line => {
-                    if (line.startsWith('#EXT-X-STREAM-INF')) {
-                        const videoMatch = line.match(/VIDEO="([^"]+)"/);
-                        const groupId = videoMatch ? videoMatch[1] : null;
-                        currentName = groupId && mediaMap[groupId] ? mediaMap[groupId] : (groupId || 'Unknown');
-                    } else if (line.startsWith('http') && currentName) {
-                        streams.push({ name: currentName, url: line });
-                        currentName = null;
-                    }
+                    var otherOptions = streams.slice(1);
+                    otherOptions.sort(function(a, b) {
+                        var getRes = function(s) {
+                            var m = s.name.match(/(\d+)p/);
+                            return m ? parseInt(m[1]) : 0;
+                        };
+                        return getRes(b) - getRes(a);
+                    });
+                    return [streams[0]].concat(otherOptions);
                 });
-
-                const autoOption = streams[0];
-                const otherOptions = streams.slice(1);
-                
-                otherOptions.sort((a, b) => {
-                    const getRes = (s) => {
-                        const m = s.name.match(/(\d+)p/);
-                        return m ? parseInt(m[1]) : 0;
-                    };
-                    return getRes(b) - getRes(a);
-                });
-
-                return [autoOption, ...otherOptions];
-            } catch (e) {
+            })
+            .catch(function(e) {
                 console.error("getStreamM3u8 error:", e);
                 return { error: e.message };
-            }
+            });
         },
 
-        openNativePlayer: async function(channelName, channelId, streamTitle) {
+        openNativePlayer: function(channelName, channelId, streamTitle, clipData) {
+            var self = this;
             state.inPlayer = true;
             state.playerFocusIndex = 0; 
             App.nav.inMenu = false;
+            state.isClip = !!clipData;
 
-            const appContainer = document.getElementById('app-container');
+            var appContainer = document.getElementById('app-container');
             if (appContainer) appContainer.style.display = 'none';
 
             state.currentStreamChannel = channelName;
             state.currentStreamId = channelId;
             state.currentStreamTitle = streamTitle || "";
 
-            const titleEl = document.getElementById('player-live-title');
+            var titleEl = document.getElementById('player-live-title');
             if (titleEl) titleEl.innerText = state.currentStreamTitle;
             
-            let existingPlayer = document.getElementById('av-player');
+            var chatBtn = document.getElementById('btn-chat');
+            if (chatBtn) chatBtn.style.display = state.isClip ? 'none' : 'flex';
+
+            var existingPlayer = document.getElementById('av-player');
             if (!existingPlayer) {
                 existingPlayer = document.createElement('object');
                 existingPlayer.id = 'av-player';
@@ -157,31 +134,37 @@
             document.body.classList.add('player-active');
             document.documentElement.classList.add('player-active');
 
-            state.qualityOptions = await this.getStreamM3u8(channelName);
-            
-            if (state.qualityOptions && state.qualityOptions.error) {
-                alert("Fetch Error: " + state.qualityOptions.error);
-                this.closeNativePlayer(); return;
-            }
-            
-            if (!state.qualityOptions || state.qualityOptions.length === 0) {
-                alert("Error: Unable to fetch video stream for " + channelName);
-                this.closeNativePlayer(); return;
-            }
+            var startPlayback = function(options) {
+                state.qualityOptions = options;
+                var defaultUrl = options.length > 1 ? options[1].url : options[0].url;
+                self.playVideoUrl(defaultUrl);
+                self.showPlayerUI();
+                self.updatePlayerFocus();
+            };
 
-            try {
-                const defaultQualityUrl = state.qualityOptions.length > 1 ? state.qualityOptions[1].url : state.qualityOptions[0].url;
-                this.playVideoUrl(defaultQualityUrl);
-            } catch (err) {
-                alert("Error starting video: " + err.message);
-                this.closeNativePlayer();
+            if (state.isClip) {
+                var mp4Url = "";
+                if (typeof clipData === 'object' && clipData.thumbnail_url) {
+                    mp4Url = clipData.thumbnail_url.split('-preview')[0] + '.mp4';
+                } else if (typeof clipData === 'string' && clipData.indexOf('.mp4') !== -1) {
+                    mp4Url = clipData;
+                } else {
+                    alert("Clip playback requires direct MP4 link.");
+                    this.closeNativePlayer();
+                    return;
+                }
+                startPlayback([{ name: 'Source', url: mp4Url }]);
+            } else {
+                this.getStreamM3u8(channelName).then(function(options) {
+                    if (options.error) { alert("Fetch Error: " + options.error); self.closeNativePlayer(); return; }
+                    if (!options || options.length === 0) { alert("Error: No stream for " + channelName); self.closeNativePlayer(); return; }
+                    startPlayback(options);
+                });
             }
-
-            this.showPlayerUI();
-            this.updatePlayerFocus();
         },
 
-        playVideoUrl: function(url, isRetry = false) {
+        playVideoUrl: function(url, isRetry) {
+            var self = this;
             state.currentVideoUrl = url;
             if (!isRetry) state.retryCount = 0;
             
@@ -194,55 +177,40 @@
 
             try {
                 webapis.avplay.open(url);
-
                 try {
                     webapis.avplay.setBufferingParam('PLAYER_BUFFER_FOR_PLAY', 'PLAYER_BUFFER_SIZE_IN_SECOND', 5);
                     webapis.avplay.setBufferingParam('PLAYER_BUFFER_FOR_RESUME', 'PLAYER_BUFFER_SIZE_IN_SECOND', 5);
-                } catch (bufErr) {
-                    console.warn("Impossibile impostare i parametri di buffering:", bufErr);
-                }
+                } catch (bufErr) { console.warn("Buffering params error", bufErr); }
 
                 var listener = {
-                    onbufferingstart: () => {
-                        console.log("Buffering start.");
+                    onbufferingstart: function() {
                         clearTimeout(state.bufferingWatchdog);
-                        state.bufferingWatchdog = setTimeout(() => {
-                            console.warn("Watchdog: Buffering prolungato (>15s). Riavvio stream.");
+                        state.bufferingWatchdog = setTimeout(function() {
                             if (state.retryCount < 3) {
                                 state.retryCount++;
-                                this.playVideoUrl(state.currentVideoUrl, true);
+                                self.playVideoUrl(state.currentVideoUrl, true);
                             }
                         }, 15000);
                     },
-                    onbufferingprogress: (percent) => { },
-                    onbufferingcomplete: () => {
-                        console.log("Buffering complete.");
-                        clearTimeout(state.bufferingWatchdog);
-                    },
-                    onstreamcompleted: () => {
-                        console.log("Stream Completed");
-                        try { webapis.avplay.stop(); } catch(e){}
-                    },
-                    oncurrentplaytime: (currentTime) => {
-                        clearTimeout(state.bufferingWatchdog);
-                    },
-                    onerror: (eventType) => {
-                        console.log("event type error : " + eventType);
+                    onbufferingprogress: function(percent) {},
+                    onbufferingcomplete: function() { clearTimeout(state.bufferingWatchdog); },
+                    onstreamcompleted: function() { try { webapis.avplay.stop(); } catch(e){} },
+                    oncurrentplaytime: function(currentTime) { clearTimeout(state.bufferingWatchdog); },
+                    onerror: function(eventType) {
                         clearTimeout(state.bufferingWatchdog);
                         if (state.retryCount < 3) {
-                            console.warn("AVPlay onerror: tento il riavvio.");
                             state.retryCount++;
-                            setTimeout(() => { this.playVideoUrl(state.currentVideoUrl, true); }, 2000);
+                            setTimeout(function() { self.playVideoUrl(state.currentVideoUrl, true); }, 2000);
                         }
                     },
-                    ondrmevent: (drmEvent, drmData) => { },
-                    onsubtitlechange: (duration, text, data3, data4) => { }
+                    ondrmevent: function() {},
+                    onsubtitlechange: function() {}
                 };
 
                 webapis.avplay.setListener(listener);
                 webapis.avplay.setDisplayMethod(state.isChatOpen ? 'PLAYER_DISPLAY_MODE_LETTER_BOX' : 'PLAYER_DISPLAY_MODE_FULL_SCREEN');
 
-                webapis.avplay.prepareAsync(() => {
+                webapis.avplay.prepareAsync(function() {
                     if (state.isChatOpen) {
                         try { webapis.avplay.setDisplayRect(0, 126, 1470, 827); } catch(e) {}
                     } else {
@@ -252,42 +220,30 @@
                     state.isPlaying = true;
                     document.getElementById('icon-pause').style.display = 'block';
                     document.getElementById('icon-play').style.display = 'none';
-                }, (error) => {
+                }, function(error) {
                     console.error("AVPlay prepare error: " + error);
-                    clearTimeout(state.bufferingWatchdog);
                     if (state.retryCount < 3) {
                         state.retryCount++;
-                        setTimeout(() => { this.playVideoUrl(state.currentVideoUrl, true); }, 2000);
+                        setTimeout(function() { self.playVideoUrl(state.currentVideoUrl, true); }, 2000);
                     }
                 });
-            } catch (e) {
-                console.error("AVPlay open error: ", e);
-            }
+            } catch (e) { console.error("AVPlay open error: ", e); }
         },
 
         toggleChat: function() {
-            const chatContainer = document.getElementById('player-chat-container');
-
+            var chatContainer = document.getElementById('player-chat-container');
             if (!state.isChatOpen) {
                 state.isChatOpen = true;
                 chatContainer.classList.remove('hidden');
-                
-                if (App.modules.chat) {
-                    App.modules.chat.connect(state.currentStreamChannel);
-                }
-
+                if (App.modules.chat) App.modules.chat.connect(state.currentStreamChannel);
                 try {
                     webapis.avplay.setDisplayMethod('PLAYER_DISPLAY_MODE_LETTER_BOX');
                     webapis.avplay.setDisplayRect(0, 126, 1470, 827);
-                } catch(e) { console.error("Error resizing video", e); }
+                } catch(e) {}
             } else {
                 state.isChatOpen = false;
                 chatContainer.classList.add('hidden');
-                
-                if (App.modules.chat) {
-                    App.modules.chat.disconnect();
-                }
-                
+                if (App.modules.chat) App.modules.chat.disconnect();
                 try {
                     webapis.avplay.setDisplayMethod('PLAYER_DISPLAY_MODE_FULL_SCREEN');
                     webapis.avplay.setDisplayRect(0, 0, 1920, 1080);
@@ -297,21 +253,20 @@
 
         closeNativePlayer: function() {
             state.inPlayer = false;
-
             if (state.isChatOpen) {
                 state.isChatOpen = false;
-                const chatContainer = document.getElementById('player-chat-container');
+                var chatContainer = document.getElementById('player-chat-container');
                 if (chatContainer) chatContainer.classList.add('hidden');
                 if (App.modules.chat) App.modules.chat.disconnect();
             }
 
-            const appContainer = document.getElementById('app-container');
+            var appContainer = document.getElementById('app-container');
             if (appContainer) appContainer.style.display = 'block';
 
             try {
                 webapis.avplay.stop();
                 webapis.avplay.close();
-            } catch (e) { console.error('AVPlay close error', e); }
+            } catch (e) {}
 
             document.body.classList.remove('player-active');
             document.documentElement.classList.remove('player-active');
@@ -322,10 +277,8 @@
             
             App.loader.unload('player');
             
-            // Ripristino intelligente dalla cache:
             if (App.previousModule) {
-                App.nav.inMenu = false;
-                App.nav.navigateTo(App.previousModule).then(() => {
+                App.nav.navigateTo(App.previousModule).then(function() {
                     if (App.modules[App.previousModule] && App.modules[App.previousModule].updateSelection) {
                         App.modules[App.previousModule].updateSelection();
                     }
@@ -337,37 +290,36 @@
         },
 
         showPlayerUI: function() {
-            const ui = document.getElementById('player-ui');
+            var ui = document.getElementById('player-ui');
             ui.classList.remove('hidden');
             clearTimeout(state.uiTimeout);
-            state.uiTimeout = setTimeout(() => {
+            state.uiTimeout = setTimeout(function() {
                 if (!state.isQualityMenuOpen) ui.classList.add('hidden');
             }, 4000);
         },
 
         updatePlayerFocus: function() {
             if (state.isQualityMenuOpen) {
-                document.querySelectorAll('.quality-item').forEach((el, i) => {
-                    el.classList.toggle('focused', i === state.qualityFocusIndex);
-                });
+                var items = document.querySelectorAll('.quality-item');
+                for (var i = 0; i < items.length; i++) items[i].classList.toggle('focused', i === state.qualityFocusIndex);
                 return;
             }
-            state.playerBtns.forEach((id, i) => document.getElementById(id).classList.toggle('focused', i === state.playerFocusIndex));
+            state.playerBtns.forEach(function(id, i) {
+                var btn = document.getElementById(id);
+                if (btn) btn.classList.toggle('focused', i === state.playerFocusIndex);
+            });
         },
 
         handleKey: function(e) {
             if (!state.inPlayer) return;
-
-            const ui = document.getElementById('player-ui');
-            const isUIHidden = ui.classList.contains('hidden');
+            var ui = document.getElementById('player-ui');
+            var isUIHidden = ui.classList.contains('hidden');
 
             if (e.keyCode === 8 || e.keyCode === 27 || e.keyCode === 461 || e.keyCode === 10009) {
                 if (state.isQualityMenuOpen) {
                     state.isQualityMenuOpen = false; document.getElementById('quality-menu').style.display = 'none';
                     this.showPlayerUI(); this.updatePlayerFocus();
-                } else {
-                    this.closeNativePlayer();
-                }
+                } else this.closeNativePlayer();
                 return;
             }
 
@@ -388,8 +340,18 @@
                 this.updatePlayerFocus(); return;
             }
 
-            if (e.keyCode === 39 && state.playerFocusIndex < state.playerBtns.length - 1) state.playerFocusIndex++;
-            if (e.keyCode === 37 && state.playerFocusIndex > 0) state.playerFocusIndex--;
+            if (e.keyCode === 39) { 
+                if (state.playerFocusIndex < state.playerBtns.length - 1) {
+                    state.playerFocusIndex++;
+                    if (state.isClip && state.playerBtns[state.playerFocusIndex] === 'btn-chat') state.playerFocusIndex++;
+                }
+            }
+            if (e.keyCode === 37) { 
+                if (state.playerFocusIndex > 0) {
+                    state.playerFocusIndex--;
+                    if (state.isClip && state.playerBtns[state.playerFocusIndex] === 'btn-chat') state.playerFocusIndex--;
+                }
+            }
             if (e.keyCode === 13) {
                 if (state.playerFocusIndex === 0) {
                     try {
@@ -399,34 +361,28 @@
                             document.getElementById('icon-pause').style.display = 'none';
                             document.getElementById('icon-play').style.display = 'block';
                         } else {
-                            // Resume: Riavvia lo stream dall'URL corrente per rimettersi in sincro con la live
-                            console.log("Resuming: Restarting stream to jump to live edge.");
                             this.playVideoUrl(state.currentVideoUrl);
                         }
-                    } catch (e) { console.error('AVPlay play/pause error', e); }
+                    } catch (e) {}
                 } else if (state.playerFocusIndex === 1) {
                     this.toggleChat();
                 } else if (state.playerFocusIndex === 2) {
-                    const menu = document.getElementById('quality-menu');
-                    menu.innerHTML = state.qualityOptions.map((q, i) => `<div class="quality-item ${i === 0 ? 'focused' : ''}">${q.name}</div>`).join('');
+                    var menu = document.getElementById('quality-menu');
+                    menu.innerHTML = state.qualityOptions.map(function(q) { return '<div class="quality-item">' + q.name + '</div>'; }).join('');
                     menu.style.display = 'flex'; state.isQualityMenuOpen = true; state.qualityFocusIndex = 0;
+                    var items = menu.querySelectorAll('.quality-item');
+                    if (items[0]) items[0].classList.add('focused');
                 } else if (state.playerFocusIndex === 3) {
-                    const channelToOpen = state.currentStreamChannel;
+                    var ch = state.currentStreamChannel;
                     this.closeNativePlayer();
-                    App.nav.navigateTo('channel').then(() => {
-                        if (App.modules.channel && App.modules.channel.openChannelView) {
-                            App.modules.channel.openChannelView(channelToOpen);
-                        }
+                    App.nav.navigateTo('channel').then(function() {
+                        if (App.modules.channel && App.modules.channel.openChannelView) App.modules.channel.openChannelView(ch);
                     });
                 }
             }
             this.updatePlayerFocus();
         },
 
-        destroy: function() {
-            if (state.inPlayer) {
-                this.closeNativePlayer();
-            }
-        }
+        destroy: function() { if (state.inPlayer) this.closeNativePlayer(); }
     };
 })();

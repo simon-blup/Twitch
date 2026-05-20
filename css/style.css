@@ -60,7 +60,7 @@ body.theme-light #app-container {
     width: 100%;
     height: 140px;
     display: -webkit-flex; display: flex;
-    -webkit-align-items: ; align-items: ;
+    align-items: center;
     padding: 0 80px;
     box-sizing: border-box;
     z-index: 100;
@@ -73,16 +73,16 @@ body.theme-light #topbar {
 }
 
 #topbar.hidden-topbar {
-    -webkit-transform: ; transform: ;
+    transform: translateY(-100%);
 }
 
 #main-menu {
     position: relative;
     display: -webkit-flex; display: flex;
-    -webkit-align-items: ; align-items: ;
+    align-items: center;
     width: 100%;
-    /* gap:  */
-    -webkit-justify-content: ; justify-content: ;
+    gap: 40px;
+    justify-content: center;
     transition: justify-content 0.3s ease;
 }
 
@@ -90,6 +90,8 @@ body.theme-light #topbar {
     position: absolute;
     left: 80px;
     color: #bf94ff;
+    top: 50%;
+    transform: translateY(-50%);
     transition: color 0.3s ease;
 }
 
@@ -282,9 +284,9 @@ body.theme-light .search-game {
 /* --- AREA CONTENUTI --- */
 #content {
     flex-grow: 1;
-    padding-top: 100px;
+    padding-top: 160px;
     display: -webkit-flex; display: flex;
-    -webkit-flex-direction: ; flex-direction: ;
+    flex-direction: column;
     transition: padding-top 0.5s cubic-bezier(0.23, 1, 0.32, 1);
     min-height: 100vh;
 }
@@ -351,8 +353,8 @@ body.theme-light .category-card {
 }
 
 .channel-card {
-    width: 600px;
-    height: 338px;
+    width: 560px;
+    height: 315px;
 }
 
 .live-avatars-bar {
@@ -746,9 +748,9 @@ body.theme-light .filter-btn.focused {
     background: rgba(0, 0, 0, 0.85);
     backdrop-filter: blur(5px);
     z-index: 2000;
-    display: -webkit-flex; display: flex;
-    -webkit-align-items: ; align-items: ;
-    -webkit-justify-content: ; justify-content: ;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     opacity: 1;
     transition: opacity 0.3s ease;
 }
@@ -781,9 +783,9 @@ body.theme-light .exit-title {
 }
 .exit-buttons {
     display: -webkit-flex; display: flex;
-    /* gap:  */
-    -webkit-justify-content: ; justify-content: ;
-    -webkit-align-items: ; align-items: ;
+    gap: 30px;
+    justify-content: center;
+    align-items: center;
 }
 .exit-btn {
     height: 70px;
@@ -797,8 +799,8 @@ body.theme-light .exit-title {
     transition: all 0.3s ease;
     text-align: center;
     display: inline-flex;
-    -webkit-align-items: ; align-items: ;
-    -webkit-justify-content: ; justify-content: ;
+    align-items: center;
+    justify-content: center;
     box-sizing: border-box;
     min-width: 150px;
     margin: 0;
@@ -885,7 +887,7 @@ body.player-active #app-container {
 
 .quality-menu {
     position: absolute; left: 60px; bottom: 140px; background: rgba(31, 31, 35, 0.95);
-    border-radius: 15px; padding: 10px 0; backdrop-filter: blur(10px); -webkit-flex-direction: ; flex-direction: ;
+    border-radius: 15px; padding: 10px 0; backdrop-filter: blur(10px); flex-direction: column;
     z-index: 1005; width: 250px;
 }
 .quality-item { padding: 15px 40px; color: white; font-size: 20px; font-weight: bold; text-align: center; }
@@ -1227,7 +1229,7 @@ body.theme-light .notification-msg {
     transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1); 
 }
 .player-chat-panel.hidden { 
-    -webkit-transform: ; transform: ; 
+    transform: translateX(100%); 
 }
 /* LEGACY GAP FIXES */
 #main-menu > * { margin-right: 20px; }

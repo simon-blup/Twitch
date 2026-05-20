@@ -1,5 +1,5 @@
 (function() {
-    let state = {
+    var state = {
         dataRows: [],
         activeRow: 0,
         activeCol: 0,
@@ -16,83 +16,92 @@
             };
         },
 
-        load: async function(isRestore) {
+        load: function(isRestore) {
+            var self = this;
             if (isRestore && state.dataRows.length > 0) {
                 this.render();
-                return;
+                return Promise.resolve();
             }
             
-            const mySeq = state.seqId;
+            var mySeq = state.seqId;
             if (!App.auth.token) {
                 this.render();
-                return;
+                return Promise.resolve();
             }
-            try {
-                const folRes = await App.api.twitchFetch(`https://api.twitch.tv/helix/streams/followed?user_id=${App.auth.userId}&first=100`, {}, 30);
-                let streams = folRes.data || [];
-
-                let liveUsers = [];
-                if (streams.length > 0 && App.settings.showFollowedAvatars) {
-                    const userIds = streams.map(s => `id=${s.user_id}`).join('&');
-                    try {
-                        const userRes = await App.api.twitchFetch(`https://api.twitch.tv/helix/users?${userIds}`, {}, 60);
-                        if (userRes && userRes.data) {
-                            liveUsers = userRes.data;
+            
+            return App.api.twitchFetch('https://api.twitch.tv/helix/streams/followed?user_id=' + App.auth.userId + '&first=100', {}, 30)
+                .then(function(folRes) {
+                    var streams = folRes.data || [];
+                    var liveUsers = [];
+                    
+                    var processNext = function() {
+                        for (var i = 0; i < streams.length; i += 3) {
+                            state.dataRows.push({ type: "stream", data: streams.slice(i, i + 3) });
                         }
-                    } catch (e) { console.error("Error fetching live users for follow", e); }
-                }
+                        if (state.dataRows.length === 0) {
+                            state.dataRows.push({ type: "empty", data: [{}] });
+                        }
+                        if (liveUsers.length > 0) {
+                            state.dataRows.push({ type: "avatars", data: liveUsers });
+                        }
 
-                for (let i = 0; i < streams.length; i += 3) {
-                    state.dataRows.push({ type: "stream", data: streams.slice(i, i + 3) });
-                }
-                if (state.dataRows.length === 0) {
-                    state.dataRows.push({ type: "empty", data: [{}] });
-                }
-                if (liveUsers.length > 0) {
-                    state.dataRows.push({ type: "avatars", data: liveUsers });
-                }
+                        if (mySeq !== state.seqId) return;
+                        self.render();
+                    };
 
-                if (mySeq !== state.seqId) return;
-                this.render();
-            } catch (e) {
-                console.error(e);
-                const va = document.getElementById('main-view-area');
-                if (va) va.innerHTML = `<div style="color:red; text-align:center; padding-top:100px;">Loading error.</div>`;
-            }
+                    if (streams.length > 0 && App.settings.showFollowedAvatars) {
+                        var userIds = streams.map(function(s) { return 'id=' + s.user_id; }).join('&');
+                        return App.api.twitchFetch('https://api.twitch.tv/helix/users?' + userIds, {}, 60)
+                            .then(function(userRes) {
+                                if (userRes && userRes.data) liveUsers = userRes.data;
+                                processNext();
+                            })
+                            .catch(function(e) { 
+                                console.error("Error fetching live users for follow", e); 
+                                processNext();
+                            });
+                    } else {
+                        processNext();
+                    }
+                })
+                .catch(function(e) {
+                    console.error(e);
+                    var va = document.getElementById('main-view-area');
+                    if (va) va.innerHTML = '<div style="color:red; text-align:center; padding-top:100px;">Loading error.</div>';
+                });
         },
 
         render: function() {
-            const viewArea = document.getElementById('main-view-area');
+            var viewArea = document.getElementById('main-view-area');
             if (!viewArea) return;
 
-            let html = '<div id="follow-view" style="padding-top:20px; padding-bottom:60px; display:flex; flex-direction:column; align-items:center; gap:20px;">';
-            state.dataRows.forEach((row, rowIndex) => {
+            var html = '<div id="follow-view" style="padding-top:20px; padding-bottom:60px; display:flex; flex-direction:column; align-items:center;">';
+            state.dataRows.forEach(function(row, rowIndex) {
                 if (row.type === 'empty') {
-                    html += `<div style="color:white; font-size:30px; margin-top:100px;">${App.t('no_live')}</div>`;
+                    html += '<div style="color:white; font-size:30px; margin-top:100px;">' + App.t('no_live') + '</div>';
                 } else if (row.type === 'stream') {
-                    html += `<div id="follow-row-${rowIndex}" class="channel-grid" style="justify-content:flex-start; width: 1830px; gap: 15px;">`;
-                    row.data.forEach((item, colIndex) => {
-                        let thumb = App.utils.getSafeThumb(item.thumbnail_url, 'stream');
-                        const viewers = App.utils.formatViewers(item.viewer_count);
-                        html += `
-                            <div id="follow-card-${rowIndex}-${colIndex}" class="channel-card">
-                                <div class="badge-live">LIVE</div>
-                                <div class="badge-viewers">${viewers}</div>
-                                <img src="${thumb}" loading="lazy" onerror="this.src='icon.png'" style="width:100%; height:100%; object-fit:cover;">
-                                <div class="card-info">
-                                    <div style="font-size:22px; font-weight:bold; color:white;">${item.user_name}</div>
-                                    <div style="font-size:16px; color:#adadb8; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.title}</div>
-                                </div>
-                            </div>`;
+                    html += '<div id="follow-row-' + rowIndex + '" class="channel-grid" style="justify-content:center; width: 100%; max-width: 1920px; margin-bottom: 30px;">';
+                    row.data.forEach(function(item, colIndex) {
+                        var thumb = App.utils.getSafeThumb(item.thumbnail_url, 'stream');
+                        var viewers = App.utils.formatViewers(item.viewer_count);
+                        html += '<div id="follow-card-' + rowIndex + '-' + colIndex + '" class="channel-card" style="margin: 0 15px;">' +
+                                '<div class="badge-live">LIVE</div>' +
+                                '<div class="badge-viewers">' + viewers + '</div>' +
+                                '<img src="' + thumb + '" loading="lazy" onerror="this.src=\'icon.png\'" style="width:100%; height:100%; object-fit:cover;">' +
+                                '<div class="card-info">' +
+                                    '<div style="font-size:22px; font-weight:bold; color:white;">' + item.user_name + '</div>' +
+                                    '<div style="font-size:16px; color:#adadb8; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + item.title + '</div>' +
+                                '</div>' +
+                            '</div>';
                     });
-                    html += `</div>`;
+                    html += '</div>';
                 } else if (row.type === 'avatars') {
                     if (App.settings.showFollowedAvatars) {
-                        html += `<div class="live-avatars-bar" id="follow-row-${rowIndex}">`;
-                        row.data.forEach((item, colIndex) => {
-                            html += `<img src="${item.profile_image_url}" id="follow-card-${rowIndex}-${colIndex}" class="live-avatar-small" />`;
+                        html += '<div class="live-avatars-bar" id="follow-row-' + rowIndex + '" style="justify-content: center; gap: 20px;">';
+                        row.data.forEach(function(item, colIndex) {
+                            html += '<img src="' + item.profile_image_url + '" id="follow-card-' + rowIndex + '-' + colIndex + '" class="live-avatar-small" style="margin: 0;" />';
                         });
-                        html += `</div>`;
+                        html += '</div>';
                     }
                 }
             });
@@ -104,17 +113,18 @@
 
         updateSelection: function() {
             if (state.dataRows.length === 0) return;
-            const currentRowData = state.dataRows[state.activeRow];
+            var currentRowData = state.dataRows[state.activeRow];
 
-            document.querySelectorAll('#follow-view .channel-card, #follow-view .live-avatar-small').forEach(c => c.classList.remove('selected'));
+            var cards = document.querySelectorAll('#follow-view .channel-card, #follow-view .live-avatar-small');
+            for (var i = 0; i < cards.length; i++) cards[i].classList.remove('selected');
 
             if (!App.nav.inMenu && currentRowData && (currentRowData.type === 'stream' || currentRowData.type === 'avatars')) {
-                const card = document.getElementById(`follow-card-${state.activeRow}-${state.activeCol}`);
+                var card = document.getElementById('follow-card-' + state.activeRow + '-' + state.activeCol);
                 if (card) {
                     card.classList.add('selected');
                 }
                 if (currentRowData.type === 'stream') {
-                    const rowEl = document.getElementById(`follow-row-${state.activeRow}`);
+                    var rowEl = document.getElementById('follow-row-' + state.activeRow);
                     if (rowEl) rowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 } else {
                     if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
@@ -130,7 +140,7 @@
 
         handleKey: function(e) {
             if (state.dataRows.length === 0) return;
-            const currentRowData = state.dataRows[state.activeRow];
+            var currentRowData = state.dataRows[state.activeRow];
             
             if (currentRowData.type === 'empty') {
                 if (e.keyCode === 38) { 
@@ -149,53 +159,40 @@
             } else if (e.keyCode === 40) {
                 if (state.activeRow < state.dataRows.length - 1) {
                     state.activeRow++;
-                    if (state.activeCol >= state.dataRows[state.activeRow].data.length) {
-                        state.activeCol = state.dataRows[state.activeRow].data.length - 1;
-                    }
+                    state.activeCol = 0;
                     this.updateSelection();
                 }
             } else if (e.keyCode === 38) {
                 if (state.activeRow > 0) {
                     state.activeRow--;
-                    if (state.activeCol >= state.dataRows[state.activeRow].data.length) {
-                        state.activeCol = state.dataRows[state.activeRow].data.length - 1;
-                    }
+                    state.activeCol = 0;
                     this.updateSelection();
                 } else {
-                    App.nav.inMenu = true; 
-                    App.nav.update(); 
+                    App.nav.inMenu = true;
+                    App.nav.update();
                     this.updateSelection();
                 }
             } else if (e.keyCode === 13) {
                 if (currentRowData.type === 'stream') {
-                    const selectedStream = currentRowData.data[state.activeCol];
-                    App.nav.navigateTo('player').then(() => {
-                        if (App.modules.player && App.modules.player.openNativePlayer) {
-                            App.modules.player.openNativePlayer(selectedStream.user_name || selectedStream.user_login, selectedStream.user_id, selectedStream.title);
-                        }
+                    var stream = currentRowData.data[state.activeCol];
+                    App.nav.navigateTo('player').then(function() {
+                        App.modules.player.openNativePlayer(stream.user_login || stream.user_name, stream.user_id, stream.title);
                     });
                 } else if (currentRowData.type === 'avatars') {
-                    const selectedAvatar = currentRowData.data[state.activeCol];
-                    App.nav.navigateTo('channel').then(() => {
-                        if (App.modules.channel && App.modules.channel.openChannelView) {
-                            App.modules.channel.openChannelView(selectedAvatar.login);
-                        }
+                    var user = currentRowData.data[state.activeCol];
+                    App.nav.navigateTo('player').then(function() {
+                        App.modules.player.openNativePlayer(user.login || user.display_name, user.id, '');
                     });
                 }
-            }
-            if (e.keyCode === 8 || e.keyCode === 27 || e.keyCode === 461 || e.keyCode === 10009) {
-                App.nav.inMenu = true;
-                App.nav.update();
-                this.updateSelection();
             }
         },
 
         destroy: function() {
             state.seqId++;
-            const viewArea = document.getElementById('main-view-area');
+            var viewArea = document.getElementById('main-view-area');
             if (viewArea) {
-                const images = viewArea.querySelectorAll('img');
-                images.forEach(img => img.src = '');
+                var images = viewArea.querySelectorAll('img');
+                for (var i = 0; i < images.length; i++) images[i].src = '';
                 viewArea.innerHTML = '';
             }
         }
