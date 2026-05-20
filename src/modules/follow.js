@@ -122,10 +122,15 @@
                 var card = document.getElementById('follow-card-' + state.activeRow + '-' + state.activeCol);
                 if (card) {
                     card.classList.add('selected');
-                    App.utils.scrollToElement(card);
+                }
+                if (currentRowData.type === 'stream') {
+                    var rowEl = document.getElementById('follow-row-' + state.activeRow);
+                    if (rowEl) rowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } else {
+                    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
                 }
             } else {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                window.scrollTo(0, 0);
             }
         },
 

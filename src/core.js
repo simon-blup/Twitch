@@ -398,15 +398,6 @@ window.App = {
         saveSettings: function () {
             localStorage.setItem('twitch_settings', JSON.stringify(App.settings));
             App.utils.applySettings();
-        },
-        scrollToElement: function (el) {
-            if (!el) return;
-            var rect = el.getBoundingClientRect();
-            var absoluteElementTop = rect.top + window.pageYOffset;
-            var offset = 280; 
-            var scrollPos = absoluteElementTop - offset;
-            if (scrollPos < 0) scrollPos = 0;
-            window.scrollTo(0, scrollPos);
         }
     },
 
