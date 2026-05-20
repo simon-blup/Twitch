@@ -32,7 +32,6 @@
             var filteredOpts = allOpts.filter(function(o) { return o.id !== 'theme'; });
 
             var html = '<div id="settings-view" style="padding-top: 40px; color: white;">' +
-                    '<h1 style="text-align:center; font-size:42px; margin-bottom:40px;">' + App.t('menu_settings').toUpperCase() + '</h1>' +
                     '<div class="settings-options-container" style="display:flex; flex-direction:column; align-items:center; gap:15px;">';
             
             var hasAppearanceHeader = false;
@@ -46,16 +45,16 @@
                         : !!App.settings[o.id];
                     controlHtml = '<div class="settings-switch ' + (isOn ? 'on' : '') + '"></div>';
                 } else if (o.type === 'select') {
-                    controlHtml = '<div class="settings-value-text" style="display:flex; align-items:center; justify-content:center; gap:15px; margin:0;">' +
+                    controlHtml = '<div class="settings-value-text" style="display:flex; align-items:center; justify-content:space-between; margin:0; width: 180px;">' +
                             '<span style="opacity: 0.5; font-size: 14px;">◀</span> ' +
-                            App.settings[o.id] +
+                            '<span style="flex:1; text-align:center;">' + App.settings[o.id] + '</span>' +
                             ' <span style="opacity: 0.5; font-size: 14px;">▶</span>' +
                         '</div>';
                 }
                 
                 var prefixHtml = '';
                 if (o.id === 'barPos' && !hasAppearanceHeader) {
-                    prefixHtml = '<div style="width:800px; padding: 20px 0 10px 0; color:#adadb8; font-size:20px; font-weight:bold; letter-spacing:1px; border-bottom:1px solid rgba(255,255,255,0.1); margin-bottom:10px;">' + App.t('tab_appearance') + '</div>';
+                    prefixHtml = '<div style="width:800px; padding: 0 0 10px 0; color:#adadb8; font-size:20px; font-weight:bold; letter-spacing:1px; border-bottom:1px solid rgba(255,255,255,0.1); margin-bottom:10px;">' + App.t('tab_appearance') + '</div>';
                     hasAppearanceHeader = true;
                 }
                 if (o.id === 'performanceMode' && !hasSystemHeader) {
@@ -79,7 +78,7 @@
             filteredOpts.forEach(function(o, i) {
                 var el = document.getElementById('set-opt-' + i);
                 if (!el) return;
-                if (i === state.activeRow) {
+                if (i === state.activeRow && !App.nav.inMenu) {
                     el.style.borderColor = 'white';
                     el.style.background = '#26262c';
                     el.style.transform = 'scale(1.02)';

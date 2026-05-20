@@ -284,7 +284,7 @@ body.theme-light .search-game {
 /* --- AREA CONTENUTI --- */
 #content {
     flex-grow: 1;
-    padding-top: 160px;
+    padding-top: 110px;
     display: -webkit-flex; display: flex;
     flex-direction: column;
     transition: padding-top 0.5s cubic-bezier(0.23, 1, 0.32, 1);
@@ -292,7 +292,7 @@ body.theme-light .search-game {
 }
 
 body.menu-hidden #content {
-    padding-top: 20px;
+    padding-top: 60px;
 }
 
 #search-view {

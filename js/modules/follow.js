@@ -122,12 +122,7 @@
                 var card = document.getElementById('follow-card-' + state.activeRow + '-' + state.activeCol);
                 if (card) {
                     card.classList.add('selected');
-                }
-                if (currentRowData.type === 'stream') {
-                    var rowEl = document.getElementById('follow-row-' + state.activeRow);
-                    if (rowEl) rowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                } else {
-                    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+                    App.utils.scrollToElement(card);
                 }
             } else {
                 window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -159,13 +154,19 @@
             } else if (e.keyCode === 40) {
                 if (state.activeRow < state.dataRows.length - 1) {
                     state.activeRow++;
-                    state.activeCol = 0;
+                    var nextRowData = state.dataRows[state.activeRow];
+                    if (state.activeCol >= nextRowData.data.length) {
+                        state.activeCol = nextRowData.data.length - 1;
+                    }
                     this.updateSelection();
                 }
             } else if (e.keyCode === 38) {
                 if (state.activeRow > 0) {
                     state.activeRow--;
-                    state.activeCol = 0;
+                    var prevRowData = state.dataRows[state.activeRow];
+                    if (state.activeCol >= prevRowData.data.length) {
+                        state.activeCol = prevRowData.data.length - 1;
+                    }
                     this.updateSelection();
                 } else {
                     App.nav.inMenu = true;
