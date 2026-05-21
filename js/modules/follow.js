@@ -75,12 +75,12 @@
             var viewArea = document.getElementById('main-view-area');
             if (!viewArea) return;
 
-            var html = '<div id="follow-view" style="padding-top:20px; padding-bottom:60px; display:flex; flex-direction:column; align-items:center;">';
+            var html = '<div id="follow-view" style="padding-top:20px; padding-bottom:60px; display:-webkit-flex; display:flex; -webkit-flex-direction:column; flex-direction:column; -webkit-align-items:center; align-items:center;">';
             state.dataRows.forEach(function(row, rowIndex) {
                 if (row.type === 'empty') {
                     html += '<div style="color:white; font-size:30px; margin-top:100px;">' + App.t('no_live') + '</div>';
                 } else if (row.type === 'stream') {
-                    html += '<div id="follow-row-' + rowIndex + '" class="channel-grid" style="justify-content:center; width: 100%; max-width: 1920px; margin-bottom: 30px;">';
+                    html += '<div id="follow-row-' + rowIndex + '" class="channel-grid" style="-webkit-justify-content:center; justify-content:center; width: 100%; max-width: 1920px; margin-bottom: 30px;">';
                     row.data.forEach(function(item, colIndex) {
                         var thumb = App.utils.getSafeThumb(item.thumbnail_url, 'stream');
                         var viewers = App.utils.formatViewers(item.viewer_count);
@@ -97,7 +97,7 @@
                     html += '</div>';
                 } else if (row.type === 'avatars') {
                     if (App.settings.showFollowedAvatars) {
-                        html += '<div class="live-avatars-bar" id="follow-row-' + rowIndex + '" style="justify-content: center; gap: 20px;">';
+                        html += '<div class="live-avatars-bar" id="follow-row-' + rowIndex + '" style="-webkit-justify-content: center; justify-content: center;">';
                         row.data.forEach(function(item, colIndex) {
                             html += '<img src="' + item.profile_image_url + '" id="follow-card-' + rowIndex + '-' + colIndex + '" class="live-avatar-small" style="margin: 0;" />';
                         });

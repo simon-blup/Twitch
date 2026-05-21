@@ -6,20 +6,17 @@
         isLive: false,
         liveStreamData: null,
         vods: [], 
-        clips: [],
         activeSection: 1, 
         vodCol: 0,
-        clipCol: 0,
         seqId: 0,
-        visibleVods: 6,
-        visibleClips: 6
+        visibleVods: 6
     };
 
     App.modules.channel = {
         init: function() {},
 
         load: function(isRestore) {
-            if (isRestore && (state.vods.length > 0 || state.clips.length > 0)) {
+            if (isRestore && state.vods.length > 0) {
                 this.render();
             }
             return Promise.resolve();
@@ -30,15 +27,12 @@
             state.seqId = Date.now();
             state.activeSection = 1; 
             state.vodCol = 0;
-            state.clipCol = 0;
             state.channelData = null;
             state.followerCount = 0;
             state.isLive = false;
             state.liveStreamData = null;
             state.vods = [];
-            state.clips = [];
             state.visibleVods = 6;
-            state.visibleClips = 6;
 
             this.renderLoading();
             return this.fetchChannelData();
@@ -60,14 +54,10 @@
                         }).catch(function(e) { console.error("Followers fetch error", e); });
                 })
                 .then(function() {
-                    return Promise.all([
-                        self.fetchVods(),
-                        self.fetchClips()
-                    ]);
+                    return self.fetchVods();
                 })
                 .then(function() {
                     if (mySeq !== state.seqId) return;
-                    if (state.vods.length === 0 && state.clips.length > 0) state.activeSection = 3;
                     self.render();
                 })
                 .catch(function(e) {
@@ -123,21 +113,10 @@
                 }).catch(function(e) { console.error("Fetch Vods Error", e); });
         },
 
-        fetchClips: function() {
-            var mySeq = state.seqId;
-            var days = 30;
-            var startDate = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
-            return App.api.twitchFetch('https://api.twitch.tv/helix/clips?broadcaster_id=' + state.channelData.id + '&started_at=' + startDate + '&first=50', {}, 300)
-                .then(function(res) {
-                    if (mySeq !== state.seqId) return;
-                    state.clips = res.data || [];
-                }).catch(function(e) { console.error("Fetch Clips Error", e); });
-        },
-
         renderLoading: function() {
             var viewArea = document.getElementById('main-view-area');
             if (viewArea) {
-                viewArea.innerHTML = '<div style="display:flex; justify-content:center; align-items:center; height:100vh; font-size:24px; color:#adadb8;">' + App.t('loading') + '</div>';
+                viewArea.innerHTML = '<div style="display:-webkit-flex; display:flex; -webkit-justify-content:center; justify-content:center; -webkit-align-items:center; align-items:center; height:100vh; font-size:24px; color:#adadb8;">' + App.t('loading') + '</div>';
             }
         },
 
@@ -151,42 +130,32 @@
             var isAvatarFallback = !state.channelData.offline_image_url;
             
             var bannerHtml = banner ? '<div style="position: absolute; top: 0; left: 0; width: 100%; height: 500px; z-index: -1; overflow: hidden; opacity: 0.4;">' +
-                    '<div style="width: 100%; height: 100%; background-image: url(\'' + banner + '\'); background-size: cover; background-position: center; ' + (isAvatarFallback ? 'filter: blur(20px); transform: scale(1.2);' : '') + '"></div>' +
+                    '<div style="width: 100%; height: 100%; background-image: url(\'' + banner + '\'); background-size: cover; background-position: center; ' + (isAvatarFallback ? '-webkit-filter: blur(20px); filter: blur(20px); -webkit-transform: scale(1.2); transform: scale(1.2);' : '') + '"></div>' +
                     '<div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 200px; background: linear-gradient(to bottom, transparent, #0e0e10);"></div>' +
                 '</div>' : '';
 
             var html = '<div id="channel-view" style="padding: 60px 0; color: white; width: 100%; overflow-x: hidden; position: relative;">' +
                     bannerHtml +
-                    '<div style="display:flex; align-items:flex-start; margin-bottom:60px; padding: 0 80px;">' +
-                        '<div style="display:flex; flex:1;">' +
-                            '<img src="' + state.channelData.profile_image_url + '" style="width:180px; height:180px; border-radius:50%; border:6px solid #18181b; background:#18181b; box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin-right:40px;">' +
+                    '<div style="display:-webkit-flex; display:flex; -webkit-align-items:flex-start; align-items:flex-start; margin-bottom:60px; padding: 0 80px;">' +
+                        '<div style="display:-webkit-flex; display:flex; -webkit-flex:1; flex:1;">' +
+                            '<img src="' + state.channelData.profile_image_url + '" style="width:180px; height:180px; border-radius:50%; border:6px solid #18181b; background:#18181b; box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin-right:40px; -webkit-flex-shrink:0; flex-shrink:0;">' +
                             '<div style="padding-top:20px;">' +
                                 '<h1 style="font-size:54px; margin:0; font-weight:bold; color:' + titleColor + ';">' + state.channelData.display_name + '</h1>' +
-                                '<div style="font-size:20px; color:#adadb8; margin-top:10px; max-width: 800px; line-height: 1.4;">' + (state.channelData.description || 'Nessuna descrizione.') + '</div>' +
+                                '<div style="font-size:20px; color:#adadb8; margin-top:10px; max-width: 800px; line-height: 1.4;">' + (state.channelData.description || '') + '</div>' +
                             '</div>' +
                         '</div>' +
-                        '<div style="padding-top:50px; text-align:right;">' +
+                        '<div style="padding-top:50px; text-align:right; -webkit-flex-shrink:0; flex-shrink:0;">' +
                             '<div style="font-size:22px; font-weight:bold; color:' + titleColor + ';">' + App.utils.formatViewers(state.followerCount) + '</div>' +
                             '<div style="font-size:14px; color:#adadb8; text-transform:uppercase; letter-spacing:1px;">' + App.t('followers') + '</div>' +
                         '</div>' +
                     '</div>' +
                     '<div id="section-1" style="margin-bottom:60px; ' + (state.vods.length === 0 ? 'display:none;' : '') + '">' +
-                        '<div style="display:flex; align-items:center; margin-bottom:20px; padding: 0 80px;">' +
+                        '<div style="display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center; margin-bottom:20px; padding: 0 80px;">' +
                             '<h2 style="font-size:32px; margin:0;">Video ' + (state.isLive ? '& Diretta' : '') + '</h2>' +
                         '</div>' +
                         '<div style="width: 100%; overflow: visible;">' +
-                            '<div id="chan-vods-strip" style="display:flex; padding: 10px 80px; transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1); transform: translateX(0px);">' +
+                            '<div id="chan-vods-strip" style="display:-webkit-flex; display:flex; -webkit-flex-direction:row; flex-direction:row; padding: 10px 80px; -webkit-transition: -webkit-transform 0.3s cubic-bezier(0.23, 1, 0.32, 1); transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1); -webkit-transform: translateX(0px); transform: translateX(0px);">' +
                                 this.renderVodItems() +
-                            '</div>' +
-                        '</div>' +
-                    '</div>' +
-                    '<div id="section-3" style="margin-bottom:60px; ' + (state.clips.length === 0 && state.vods.length > 0 ? 'display:none;' : '') + '">' +
-                        '<div style="display:flex; align-items:center; margin-bottom:20px; padding: 0 80px;">' +
-                            '<h2 style="font-size:32px; margin:0;">' + App.t('clips') + '</h2>' +
-                        '</div>' +
-                        '<div style="width: 100%; overflow: visible;">' +
-                            '<div id="chan-clips-strip" style="display:flex; flex-direction:row; padding: 10px 80px; transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1); transform: translateX(0px);">' +
-                                this.renderClipItems() +
                             '</div>' +
                         '</div>' +
                     '</div>' +
@@ -205,7 +174,7 @@
                 var durationBadge = v.isLiveItem ? '<div class="badge-live">LIVE</div>' : '<div class="badge-live" style="background:rgba(0,0,0,0.8);">' + v.duration + '</div>';
                 var viewerBadge = v.isLiveItem ? '<div class="badge-viewers">' + App.utils.formatViewers(v.view_count) + '</div>' : '<div class="badge-viewers no-dot" style="top:20px; right:20px; bottom:auto; left:auto;">' + App.utils.formatViewers(v.view_count) + ' views</div>';
 
-                return '<div id="chan-item-1-' + i + '" class="channel-card" style="width:560px; margin-right:20px; flex-shrink:0;">' +
+                return '<div id="chan-item-1-' + i + '" class="channel-card" style="width:560px; margin-right:20px; -webkit-flex-shrink:0; flex-shrink:0;">' +
                         durationBadge + viewerBadge +
                         '<img src="' + thumb + '" onerror="this.src=\'https://vod-secure.twitch.tv/_404/404_processing_600x338.png\'" style="width:100%; height:100%; object-fit:cover;">' +
                         '<div class="card-info">' +
@@ -216,41 +185,23 @@
             }).join('');
         },
 
-        renderClipItems: function() {
-            if (state.clips.length === 0) return '<div style="color:#adadb8; font-size:20px;">Nessuna clip trovata.</div>';
-            return state.clips.slice(0, state.visibleClips).map(function(c, i) {
-                return '<div id="chan-item-3-' + i + '" class="channel-card" style="width:560px; margin-right:20px; flex-shrink:0;">' +
-                        '<div class="badge-viewers no-dot" style="top:20px; right:20px; bottom:auto; left:auto;">' + App.utils.formatViewers(c.view_count) + ' views</div>' +
-                        '<img src="' + c.thumbnail_url + '" loading="lazy" style="width:100%; height:100%; object-fit:cover;">' +
-                        '<div class="card-info">' +
-                            '<div style="font-size:22px; font-weight:bold; color:white;">' + c.title + '</div>' +
-                            '<div style="font-size:16px; color:#adadb8; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + c.creator_name + '</div>' +
-                        '</div>' +
-                    '</div>';
-            }).join('');
-        },
-
         updateSelection: function() {
-            var cards = document.querySelectorAll('.channel-card');
+            var cards = document.querySelectorAll('#channel-view .channel-card');
             for (var i = 0; i < cards.length; i++) cards[i].classList.remove('selected');
 
-            var targetContainer = null;
             if (state.activeSection === 1) {
                 var item = document.getElementById('chan-item-1-' + state.vodCol);
-                if (item) item.classList.add('selected');
+                if (item && !App.nav.inMenu) item.classList.add('selected');
                 var strip = document.getElementById('chan-vods-strip');
-                if (strip) strip.style.transform = 'translateX(-' + (state.vodCol * 580) + 'px)';
-                targetContainer = document.getElementById('section-1');
-            } else if (state.activeSection === 3) {
-                var item = document.getElementById('chan-item-3-' + state.clipCol);
-                if (item) item.classList.add('selected');
-                var strip = document.getElementById('chan-clips-strip');
-                if (strip) strip.style.transform = 'translateX(-' + (state.clipCol * 580) + 'px)';
-                targetContainer = document.getElementById('section-3');
+                if (strip) {
+                    strip.style.webkitTransform = 'translateX(-' + (state.vodCol * 580) + 'px)';
+                    strip.style.transform = 'translateX(-' + (state.vodCol * 580) + 'px)';
+                }
+                var targetContainer = document.getElementById('section-1');
+                if (targetContainer && !App.nav.inMenu) targetContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
 
-            if (targetContainer) targetContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            else if (App.nav.inMenu) window.scrollTo({ top: 0, behavior: 'smooth' });
+            if (App.nav.inMenu) window.scrollTo({ top: 0, behavior: 'smooth' });
         },
 
         handleKey: function(e) {
@@ -263,23 +214,11 @@
                             document.getElementById('chan-vods-strip').innerHTML = this.renderVodItems();
                         }
                     }
-                } else if (state.activeSection === 3) {
-                    if (state.clipCol < state.clips.length - 1) {
-                        state.clipCol++;
-                        if (state.clipCol >= state.visibleClips - 2) {
-                            state.visibleClips += 3;
-                            document.getElementById('chan-clips-strip').innerHTML = this.renderClipItems();
-                        }
-                    }
                 }
             } else if (e.keyCode === 37) { 
                 if (state.activeSection === 1 && state.vodCol > 0) state.vodCol--;
-                else if (state.activeSection === 3 && state.clipCol > 0) state.clipCol--;
-            } else if (e.keyCode === 40) { 
-                if (state.activeSection === 1 && state.clips.length > 0) state.activeSection = 3;
             } else if (e.keyCode === 38) { 
-                if (state.activeSection === 3 && state.vods.length > 0) state.activeSection = 1;
-                else { App.nav.inMenu = true; App.nav.update(); }
+                App.nav.inMenu = true; App.nav.update();
             } else if (e.keyCode === 13) { 
                 if (state.activeSection === 1) {
                     var v = state.vods[state.vodCol];
@@ -287,12 +226,11 @@
                         App.nav.navigateTo('player').then(function() {
                             App.modules.player.openNativePlayer(v.user_name, v.id, v.title);
                         });
-                    } else { alert("La riproduzione dei VOD richiede l'integrazione con l'API Usher per i VOD."); }
-                } else if (state.activeSection === 3) {
-                    var c = state.clips[state.clipCol];
-                    App.nav.navigateTo('player').then(function() {
-                        App.modules.player.openNativePlayer(c.creator_name, state.channelData.id, c.title, c);
-                    });
+                    } else {
+                        App.nav.navigateTo('player').then(function() {
+                            App.modules.player.openNativePlayer(v.user_name, state.channelData.id, v.title, null, v);
+                        });
+                    }
                 }
             } else if (e.keyCode === 8 || e.keyCode === 27 || e.keyCode === 461 || e.keyCode === 10009) {
                 this.goBack();

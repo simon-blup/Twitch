@@ -43,7 +43,7 @@ body.perf-mode .filter-btn {
 
 #app-container {
     display: -webkit-flex; display: flex;
-    -webkit-flex-direction: ; flex-direction: ;
+    -webkit-flex-direction: column; flex-direction: column;
     width: 100%;
     min-height: 100vh;
 }
@@ -314,8 +314,10 @@ body:not(.menu-hidden) #content {
 /* --- CAROSELLO LIVE (HOME) --- */
 .channel-grid {
     display: -webkit-flex; display: flex;
-    -webkit-align-items: ; align-items: ;
-    /* gap:  */
+    -webkit-flex-direction: row; flex-direction: row;
+    -webkit-align-items: center; align-items: center;
+    -webkit-flex-wrap: nowrap; flex-wrap: nowrap;
+    -webkit-transition: -webkit-transform 0.7s cubic-bezier(0.23, 1, 0.32, 1);
     transition: transform 0.7s cubic-bezier(0.23, 1, 0.32, 1);
     will-change: transform;
     padding-top: 100px;
@@ -337,10 +339,11 @@ body:not(.menu-hidden) #content {
     border-radius: 20px;
     overflow: hidden;
     position: relative;
+    -webkit-transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
     transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
     opacity: 0.85;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
-    flex-shrink: 0;
+    -webkit-flex-shrink: 0; flex-shrink: 0;
     box-sizing: border-box;
     border: 4px solid transparent;
 }
@@ -362,8 +365,7 @@ body.theme-light .category-card {
     width: 100%;
     display: -webkit-flex; display: flex;
     -webkit-justify-content: center; justify-content: center;
-    flex-wrap: wrap;
-    /* gap:  */
+    -webkit-flex-wrap: wrap; flex-wrap: wrap;
     padding: 20px 80px;
     z-index: 100;
     background: linear-gradient(to top, rgba(14,14,20,1) 50%, rgba(14,14,20,0) 100%);
@@ -899,6 +901,81 @@ body.player-active #app-container {
 }
 .quality-item { padding: 15px 40px; color: white; font-size: 20px; font-weight: bold; text-align: center; }
 .quality-item.focused { background: #9146ff; color: white; }
+
+/* --- VOD SEEKBAR --- */
+.vod-seekbar-container {
+    position: absolute;
+    left: 60px;
+    right: 60px;
+    bottom: 20px;
+    display: -webkit-flex; display: flex;
+    -webkit-flex-direction: column; flex-direction: column;
+    -webkit-align-items: flex-start; align-items: flex-start;
+    pointer-events: auto;
+    z-index: 1003;
+    -webkit-transition: all 0.3s ease;
+    transition: all 0.3s ease;
+    opacity: 0.6;
+}
+
+.vod-seekbar-container.seekbar-focused {
+    opacity: 1;
+}
+
+.vod-seekbar-container.seekbar-focused .seekbar-track {
+    height: 8px;
+    box-shadow: 0 0 15px rgba(145, 70, 255, 0.6);
+}
+
+.vod-seekbar-container.seekbar-focused .seekbar-thumb {
+    width: 16px;
+    height: 16px;
+    top: -4px;
+    box-shadow: 0 0 10px rgba(145, 70, 255, 0.8);
+}
+
+.seekbar-time {
+    font-size: 16px;
+    color: white;
+    margin-bottom: 8px;
+    text-shadow: 0 2px 6px rgba(0,0,0,0.8);
+    font-weight: bold;
+    letter-spacing: 0.5px;
+}
+
+.seekbar-track {
+    width: 100%;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    position: relative;
+    -webkit-transition: height 0.3s ease;
+    transition: height 0.3s ease;
+}
+
+.seekbar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #9146ff, #bf94ff);
+    border-radius: 4px;
+    width: 0%;
+    -webkit-transition: width 0.3s ease;
+    transition: width 0.3s ease;
+}
+
+.seekbar-thumb {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    background: #bf94ff;
+    border-radius: 50%;
+    top: -4px;
+    left: 0%;
+    transform: translateX(-50%);
+    -webkit-transform: translateX(-50%);
+    -webkit-transition: left 0.3s ease, width 0.2s ease, height 0.2s ease;
+    transition: left 0.3s ease, width 0.2s ease, height 0.2s ease;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+}
 
 /* --- CHANNEL PROFILE VIEW --- */
 .channel-header {

@@ -10,7 +10,6 @@
         { id: 'performanceMode', type: 'toggle', label: 'setting_perf' },
         { id: 'notifications', type: 'toggle', label: 'setting_notifications' },
         { id: 'adBlock', type: 'toggle', label: 'setting_adblock' },
-        { id: 'language', type: 'select', label: 'setting_lang', values: ['English', 'Italiano', 'Español', '中文', 'Français'] },
         { id: 'logout', type: 'action', label: 'setting_remove', color: 'danger' }
     ];
 
@@ -32,7 +31,7 @@
             var filteredOpts = allOpts.filter(function(o) { return o.id !== 'theme'; });
 
             var html = '<div id="settings-view" style="padding-top: 40px; color: white;">' +
-                    '<div class="settings-options-container" style="display:flex; flex-direction:column; align-items:center; gap:15px;">';
+                    '<div class="settings-options-container" style="display:-webkit-flex; display:flex; -webkit-flex-direction:column; flex-direction:column; -webkit-align-items:center; align-items:center;">';
             
             var hasAppearanceHeader = false;
             var hasSystemHeader = false;
@@ -45,9 +44,9 @@
                         : !!App.settings[o.id];
                     controlHtml = '<div class="settings-switch ' + (isOn ? 'on' : '') + '"></div>';
                 } else if (o.type === 'select') {
-                    controlHtml = '<div class="settings-value-text" style="display:flex; align-items:center; justify-content:space-between; margin:0; width: 180px;">' +
+                    controlHtml = '<div class="settings-value-text" style="display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center; -webkit-justify-content:space-between; justify-content:space-between; margin:0; width: 180px;">' +
                             '<span style="opacity: 0.5; font-size: 14px;">◀</span> ' +
-                            '<span style="flex:1; text-align:center;">' + App.settings[o.id] + '</span>' +
+                            '<span style="-webkit-flex:1; flex:1; text-align:center;">' + App.settings[o.id] + '</span>' +
                             ' <span style="opacity: 0.5; font-size: 14px;">▶</span>' +
                         '</div>';
                 }
@@ -62,7 +61,7 @@
                     hasSystemHeader = true;
                 }
                 
-                return prefixHtml + '<div id="set-opt-' + i + '" class="settings-row ' + (o.color === 'danger' ? 'danger' : '') + '" style="width:800px; display:flex; justify-content:space-between; align-items:center; padding:25px 40px; background:#18181b; border-radius:20px; border:3px solid transparent;">' +
+                return prefixHtml + '<div id="set-opt-' + i + '" class="settings-row ' + (o.color === 'danger' ? 'danger' : '') + '" style="width:800px; display:-webkit-flex; display:flex; -webkit-justify-content:space-between; justify-content:space-between; -webkit-align-items:center; align-items:center; padding:25px 40px; background:#18181b; border-radius:20px; border:3px solid transparent;">' +
                         '<div class="settings-label" style="font-size:24px; margin:0;">' + App.t(o.label) + '</div>' +
                         controlHtml +
                     '</div>';

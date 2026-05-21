@@ -228,6 +228,7 @@
                     var gap = 20;
                     var offset = 80 - (activeCol * (cardWidth + gap));
                     if (offset > 80) offset = 80;
+                    rowDiv.style.webkitTransform = 'translateX(' + offset + 'px)';
                     rowDiv.style.transform = 'translateX(' + offset + 'px)';
                 }
             });
