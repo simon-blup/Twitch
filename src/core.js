@@ -401,6 +401,61 @@ window.App = {
         }
     },
 
+    ExitMenu: {
+        active: false,
+        focusIndex: 0,
+
+        show: function () {
+            var overlay = document.getElementById('exit-menu-container');
+            if (!overlay) return;
+            App.ExitMenu.active = true;
+            App.ExitMenu.focusIndex = 0;
+            overlay.classList.remove('hidden');
+
+            // Update button text with i18n
+            var title = overlay.querySelector('.exit-title');
+            var cancelBtn = document.getElementById('btn-exit-cancel');
+            var confirmBtn = document.getElementById('btn-exit-confirm');
+            if (title) title.textContent = App.t('exit_title');
+            if (cancelBtn) cancelBtn.textContent = App.t('exit_cancel');
+            if (confirmBtn) confirmBtn.textContent = App.t('exit_confirm');
+
+            App.ExitMenu.updateFocus();
+        },
+
+        hide: function () {
+            var overlay = document.getElementById('exit-menu-container');
+            if (overlay) overlay.classList.add('hidden');
+            App.ExitMenu.active = false;
+        },
+
+        updateFocus: function () {
+            var cancelBtn = document.getElementById('btn-exit-cancel');
+            var confirmBtn = document.getElementById('btn-exit-confirm');
+            if (cancelBtn) cancelBtn.classList.toggle('focused', App.ExitMenu.focusIndex === 0);
+            if (confirmBtn) confirmBtn.classList.toggle('focused', App.ExitMenu.focusIndex === 1);
+        },
+
+        handleKey: function (e) {
+            if (e.keyCode === 37) {
+                App.ExitMenu.focusIndex = 0;
+                App.ExitMenu.updateFocus();
+            } else if (e.keyCode === 39) {
+                App.ExitMenu.focusIndex = 1;
+                App.ExitMenu.updateFocus();
+            } else if (e.keyCode === 13) {
+                if (App.ExitMenu.focusIndex === 1) {
+                    // Exit the app
+                    try { tizen.application.getCurrentApplication().exit(); } catch (ex) { window.close(); }
+                } else {
+                    App.ExitMenu.hide();
+                }
+            } else if (e.keyCode === 8 || e.keyCode === 27 || e.keyCode === 461 || e.keyCode === 10009) {
+                App.ExitMenu.hide();
+            }
+        }
+    },
+
     init: function () {
         var storedSettings = JSON.parse(localStorage.getItem('twitch_settings'));
         if (storedSettings) {

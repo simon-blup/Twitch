@@ -28,9 +28,12 @@
             var viewArea = document.getElementById('main-view-area');
             if (!viewArea) return;
 
-            var html = '<div id="profile-view" style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:calc(100vh - 140px); color:white;">' +
-                '<div id="device-flow-container" class="activation-box" style="text-align:center;">' +
-                    '<div style="font-size:28px; margin-bottom:20px;">' + App.t('loading') + '</div>' +
+            var html = '<div id="profile-view" class="activation-container">' +
+                '<div id="device-flow-wrapper" style="display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center;">' +
+                    '<div id="device-qr" style="margin-right:40px; display:none;"></div>' +
+                    '<div id="device-flow-container" class="activation-box" style="text-align:center;">' +
+                        '<div style="font-size:28px; margin-bottom:20px;">' + App.t('loading') + '</div>' +
+                    '</div>' +
                 '</div>' +
             '</div>';
 
@@ -46,7 +49,7 @@
 
             var html = '<div id="profile-view" style="padding-top:60px; color:white; display:flex; flex-direction:column; align-items:center; width: 100%;">' +
                 '<h1 style="font-size:42px; margin-bottom:60px; font-weight:bold; letter-spacing:2px;">' + App.t('accounts_title').toUpperCase() + '</h1>' +
-                '<div id="profiles-list" style="display:flex; justify-content:center; align-items:center; flex-wrap:wrap; padding:0 80px; width:100%; box-sizing:border-box;">';
+                '<div id="profiles-list" style="display:flex; justify-content:center; align-items:center; flex-wrap:wrap;">';
 
             App.profiles.forEach(function (p, i) {
                 var isActive = p.id === App.activeProfileId;
@@ -107,10 +110,17 @@
             .then(function(res) { return res.json(); })
             .then(function(data) {
                 var container = document.getElementById('device-flow-container');
+                var qrDiv = document.getElementById('device-qr');
                 if (container) {
-                    container.innerHTML = '<div style="font-size:32px; margin-bottom:20px;">' + App.t('login_goto') + ' <span style="color:#bf94ff; font-weight:bold;">twitch.tv/activate</span></div>' +
-                        '<div style="font-size:64px; font-weight:bold; letter-spacing:8px; background:rgba(255,255,255,0.1); padding:20px 40px; border-radius:15px; margin-bottom:30px;">' + data.user_code + '</div>' +
+                    container.innerHTML =
+                        '<div style="font-size:28px; margin-bottom:20px;">' + App.t('login_goto') + ' <span style="color:#bf94ff; font-weight:bold;">twitch.tv/activate</span></div>' +
+                        '<div style="font-size:64px; font-weight:bold; letter-spacing:8px; background:rgba(255,255,255,0.1); padding:20px 40px; border-radius:15px; margin-bottom:20px;">' + data.user_code + '</div>' +
                         '<div style="font-size:20px; color:#adadb8;">' + App.t('login_code_expire') + ' ' + Math.floor(data.expires_in / 60) + ' ' + App.t('login_minutes') + '</div>';
+                }
+                if (qrDiv) {
+                    var qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(data.verification_uri) + '&bgcolor=0e0e10&color=bf94ff';
+                    qrDiv.innerHTML = '<img src="' + qrUrl + '" style="width:180px; height:180px; border-radius:15px;" onerror="this.parentNode.style.display=\'none\'">';
+                    qrDiv.style.display = 'block';
                 }
                 
                 state.pollInterval = setInterval(function() { self.pollToken(data.device_code); }, data.interval * 1000);
