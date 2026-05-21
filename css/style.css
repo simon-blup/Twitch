@@ -284,10 +284,15 @@ body.theme-light .search-game {
 /* --- AREA CONTENUTI --- */
 #content {
     flex-grow: 1;
-    padding-top: 120px;
+    padding-top: 80px; /* Bordo superiore minimo quando scorri le live */
     display: -webkit-flex; display: flex;
     flex-direction: column;
     min-height: 100vh;
+}
+
+/* Quando il menu NON è nascosto (quindi siamo sopra nei tab) */
+body:not(.menu-hidden) #content {
+    padding-top: 130px; /* Lo spazio perfetto che avevi approvato tra menu e live */
 }
 
 #search-view {
