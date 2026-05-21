@@ -235,7 +235,9 @@
             if (!state.isChatOpen) {
                 state.isChatOpen = true;
                 chatContainer.classList.remove('hidden');
-                if (App.modules.chat) App.modules.chat.connect(state.currentStreamChannel);
+                App.loader.load('chat').then(function() {
+                    if (App.modules.chat) App.modules.chat.connect(state.currentStreamChannel);
+                });
                 try {
                     webapis.avplay.setDisplayMethod('PLAYER_DISPLAY_MODE_LETTER_BOX');
                     webapis.avplay.setDisplayRect(0, 126, 1470, 827);

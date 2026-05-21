@@ -2,8 +2,7 @@
     var ws = null;
     var messageQueue = [];
     var isRendering = false;
-    var emoteCache = {}; 
-    var MAX_NODES = 25;
+    var MAX_NODES = 30;
 
     App.modules.chat = {
         init: function() {},
@@ -16,44 +15,57 @@
             
             var chatContainer = document.getElementById('player-chat-container');
             if (chatContainer) {
-                chatContainer.innerHTML = '<div id="chat-messages" style="display:flex; flex-direction:column; justify-content:flex-end; height:100%; padding: 20px; overflow:hidden; gap: 12px; font-size: 18px; font-family: sans-serif;"></div>';
+                chatContainer.innerHTML = '<div id="chat-messages" style="position:absolute; bottom:0; left:0; right:0; top:0; padding:20px; overflow:hidden; font-size:18px; font-family:sans-serif; color:#efeff1;"></div>';
             }
 
             ws = new WebSocket('wss://irc-ws.chat.twitch.tv:443');
             
             ws.onopen = function() {
                 ws.send('CAP REQ :twitch.tv/tags twitch.tv/commands');
-                ws.send('PASS SCHMOOPIIE');
-                ws.send('NICK justinfan' + Math.floor(Math.random() * 80000));
+                // Use actual user token if available, otherwise anonymous
+                if (App.auth && App.auth.token) {
+                    ws.send('PASS oauth:' + App.auth.token);
+                    // Use a valid nick for authenticated
+                    var nick = 'justinfan' + Math.floor(Math.random() * 80000);
+                    ws.send('NICK ' + nick);
+                } else {
+                    ws.send('PASS SCHMOOPIIE');
+                    ws.send('NICK justinfan' + Math.floor(Math.random() * 80000));
+                }
                 ws.send('JOIN #' + channel.toLowerCase());
             };
 
             ws.onmessage = function(event) {
                 var lines = event.data.split('\r\n');
-                lines.forEach(function(line) {
-                    if (!line) return;
+                for (var li = 0; li < lines.length; li++) {
+                    var line = lines[li];
+                    if (!line) continue;
                     if (line.indexOf('PING') === 0) {
                         ws.send('PONG :tmi.twitch.tv');
                     } else if (line.indexOf('PRIVMSG') !== -1) {
                         self.handleMessage(line);
                     }
-                });
+                }
+            };
+
+            ws.onerror = function(err) {
+                console.error('Chat WebSocket error:', err);
             };
         },
 
         handleMessage: function(rawLine) {
             var tags = {};
             var msgStr = rawLine;
-            if (rawLine.indexOf('@') === 0) {
+            if (rawLine.charAt(0) === '@') {
                 var splitIdx = rawLine.indexOf(' ');
                 var tagsStr = rawLine.substring(1, splitIdx);
                 msgStr = rawLine.substring(splitIdx + 1);
                 
                 var tagParts = tagsStr.split(';');
-                tagParts.forEach(function(tag) {
-                    var kv = tag.split('=');
-                    tags[kv[0]] = kv[1];
-                });
+                for (var t = 0; t < tagParts.length; t++) {
+                    var kv = tagParts[t].split('=');
+                    tags[kv[0]] = kv[1] || '';
+                }
             }
 
             var prefixEnd = msgStr.indexOf(' ', 1);
@@ -62,11 +74,12 @@
             var user = userMatch ? userMatch[1] : 'Unknown';
             
             var msgStart = msgStr.indexOf(' :', prefixEnd);
+            if (msgStart === -1) return;
             var text = msgStr.substring(msgStart + 2);
 
             var color = tags['color'] || '#bf94ff';
             
-            messageQueue.push({ user: user, color: color, text: text, emotes: tags['emotes'] });
+            messageQueue.push({ user: user, color: color, text: text, emotes: tags['emotes'] || '' });
             this.scheduleRender();
         },
 
@@ -83,108 +96,88 @@
                     return;
                 }
 
-                var messagesToRender = messageQueue.splice(0, 10);
+                var messagesToRender = messageQueue.splice(0, 5);
                 
-                var processNext = function(idx) {
-                    if (idx >= messagesToRender.length) {
-                        while (container.childNodes.length > MAX_NODES) {
-                            container.removeChild(container.firstChild);
-                        }
-                        isRendering = false;
-                        if (messageQueue.length > 0) self.scheduleRender();
-                        return;
-                    }
-
-                    var msg = messagesToRender[idx];
+                for (var m = 0; m < messagesToRender.length; m++) {
+                    var msg = messagesToRender[m];
                     var div = document.createElement('div');
                     div.style.lineHeight = '1.5';
                     div.style.wordWrap = 'break-word';
-                    div.style.marginBottom = '4px';
+                    div.style.marginBottom = '10px';
                     
-                    var formattedText = self.escapeHtml(msg.text);
-                    self.parseEmotes(formattedText, msg.emotes).then(function(res) {
-                        div.innerHTML = '<span style="color:' + msg.color + '; font-weight:bold;">' + msg.user + ':</span> <span style="color:#efeff1;">' + res + '</span>';
-                        container.appendChild(div);
-                        processNext(idx + 1);
-                    }).catch(function() {
-                        div.innerHTML = '<span style="color:' + msg.color + '; font-weight:bold;">' + msg.user + ':</span> <span style="color:#efeff1;">' + formattedText + '</span>';
-                        container.appendChild(div);
-                        processNext(idx + 1);
-                    });
-                };
+                    var safeText = self.escapeHtml(msg.text);
+                    var rendered = self.renderEmotes(safeText, msg.emotes);
+                    
+                    div.innerHTML = '<span style="color:' + msg.color + '; font-weight:bold;">' + self.escapeHtml(msg.user) + ':</span> <span style="color:#efeff1;">' + rendered + '</span>';
+                    container.appendChild(div);
+                }
 
-                processNext(0);
-            }, 50);
+                // Remove old messages
+                while (container.childNodes.length > MAX_NODES) {
+                    container.removeChild(container.firstChild);
+                }
+
+                // Scroll to bottom: move all messages up by repositioning
+                // Simple approach: keep only last N messages visible, aligned to bottom
+                self.scrollToBottom(container);
+
+                isRendering = false;
+                if (messageQueue.length > 0) self.scheduleRender();
+            }, 80);
+        },
+
+        scrollToBottom: function(container) {
+            // Force scroll to bottom
+            container.scrollTop = container.scrollHeight;
+            // Fallback: set overflow-y to auto temporarily
+            container.style.overflowY = 'auto';
+            container.scrollTop = container.scrollHeight;
+            container.style.overflowY = 'hidden';
         },
 
         escapeHtml: function(unsafe) {
+            if (!unsafe) return '';
             return unsafe.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
         },
 
-        parseEmotes: function(text, emotesStr) {
-            var self = this;
-            if (!emotesStr) return Promise.resolve(text);
-            var emotes = [];
-            emotesStr.split('/').forEach(function(emote) {
-                var parts = emote.split(':');
-                var id = parts[0];
-                var positions = parts[1];
-                if (!positions) return;
-                positions.split(',').forEach(function(pos) {
-                    var range = pos.split('-');
-                    emotes.push({ id: id, start: parseInt(range[0]), end: parseInt(range[1]) });
-                });
-            });
-            
-            emotes.sort(function(a, b) { return b.start - a.start; });
-            
-            var res = text;
-            var promise = Promise.resolve();
-
-            var applyNext = function(idx) {
-                if (idx >= emotes.length) return Promise.resolve(res);
-                var emote = emotes[idx];
-                return self.getEmoteBase64(emote.id).then(function(b64) {
-                    var imgTag = '<img src="' + b64 + '" style="vertical-align: middle; height: 28px; margin: -5px 0;">';
-                    res = res.substring(0, emote.start) + imgTag + res.substring(emote.end + 1);
-                    return applyNext(idx + 1);
-                });
-            };
-
-            return applyNext(0);
-        },
-
-        getEmoteBase64: function(id) {
-            if (emoteCache[id]) return Promise.resolve(emoteCache[id]);
-            
-            return new Promise(function(resolve) {
-                var img = new Image();
-                img.crossOrigin = 'Anonymous';
-                img.onload = function() {
-                    try {
-                        var canvas = document.createElement('canvas');
-                        canvas.width = img.width;
-                        canvas.height = img.height;
-                        var ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0);
-                        var dataURL = canvas.toDataURL('image/png');
-                        emoteCache[id] = dataURL; 
-                        resolve(dataURL);
-                    } catch(e) {
-                        resolve('https://static-cdn.jtvnw.net/emoticons/v2/' + id + '/default/dark/1.0'); 
+        renderEmotes: function(text, emotesStr) {
+            if (!emotesStr) return text;
+            try {
+                var emotes = [];
+                var emoteParts = emotesStr.split('/');
+                for (var e = 0; e < emoteParts.length; e++) {
+                    var parts = emoteParts[e].split(':');
+                    var id = parts[0];
+                    var positions = parts[1];
+                    if (!positions) continue;
+                    var posList = positions.split(',');
+                    for (var p = 0; p < posList.length; p++) {
+                        var range = posList[p].split('-');
+                        emotes.push({ id: id, start: parseInt(range[0]), end: parseInt(range[1]) });
                     }
-                };
-                img.onerror = function() { resolve('https://static-cdn.jtvnw.net/emoticons/v2/' + id + '/default/dark/1.0'); };
-                img.src = 'https://static-cdn.jtvnw.net/emoticons/v2/' + id + '/default/dark/1.0';
-            });
+                }
+                
+                emotes.sort(function(a, b) { return b.start - a.start; });
+                
+                var result = text;
+                for (var i = 0; i < emotes.length; i++) {
+                    var emote = emotes[i];
+                    var imgTag = '<img src="https://static-cdn.jtvnw.net/emoticons/v2/' + emote.id + '/default/dark/1.0" style="vertical-align:middle; height:28px; margin:-3px 2px;">';
+                    result = result.substring(0, emote.start) + imgTag + result.substring(emote.end + 1);
+                }
+                return result;
+            } catch(ex) {
+                return text;
+            }
         },
 
         disconnect: function() {
             if (ws) {
-                ws.close();
+                try { ws.close(); } catch(e) {}
                 ws = null;
             }
             messageQueue = [];
+            isRendering = false;
             var container = document.getElementById('player-chat-container');
             if (container) container.innerHTML = '';
         },

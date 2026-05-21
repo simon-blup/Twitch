@@ -47,25 +47,25 @@
             var viewArea = document.getElementById('main-view-area');
             if (!viewArea) return;
 
-            var html = '<div id="profile-view" style="padding-top:60px; color:white; display:flex; flex-direction:column; align-items:center; width: 100%;">' +
-                '<h1 style="font-size:42px; margin-bottom:60px; font-weight:bold; letter-spacing:2px;">' + App.t('accounts_title').toUpperCase() + '</h1>' +
-                '<div id="profiles-list" style="display:flex; justify-content:center; align-items:center; flex-wrap:wrap;">';
+            var html = '<div id="profile-view" style="padding-top:60px; color:white; display:-webkit-flex; display:flex; -webkit-flex-direction:column; flex-direction:column; -webkit-align-items:center; align-items:center; -webkit-justify-content:center; justify-content:center; width:100%; min-height:calc(100vh - 140px);">' +
+                '<h1 style="font-size:42px; margin-bottom:60px; font-weight:bold; letter-spacing:2px; text-align:center;">' + App.t('accounts_title').toUpperCase() + '</h1>' +
+                '<div id="profiles-list" style="display:-webkit-flex; display:flex; -webkit-justify-content:center; justify-content:center; -webkit-align-items:center; align-items:center; -webkit-flex-wrap:wrap; flex-wrap:wrap;">';
 
             App.profiles.forEach(function (p, i) {
                 var isActive = p.id === App.activeProfileId;
-                html += '<div id="prof-opt-' + i + '" class="profile-card" style="display:flex; flex-direction:column; align-items:center; width:220px; transition:0.3s; margin: 0 25px;">' +
+                html += '<div id="prof-opt-' + i + '" class="profile-card" style="display:-webkit-flex; display:flex; -webkit-flex-direction:column; flex-direction:column; -webkit-align-items:center; align-items:center; width:220px; transition:0.3s; margin: 0 25px;">' +
                     '<div class="avatar-container" style="position:relative; width:180px; height:180px; border-radius:50%; border:6px solid transparent; transition:0.3s;">' +
                         '<img src="' + p.img + '" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">' +
-                        (isActive ? '<div style="position:absolute; bottom:5px; right:5px; background:#bf94ff; color:white; border-radius:50%; width:40px; height:40px; display:flex; align-items:center; justify-content:center; font-size:24px; box-shadow:0 4px 10px rgba(0,0,0,0.5);">✓</div>' : '') +
+                        (isActive ? '<div style="position:absolute; bottom:5px; right:5px; background:#bf94ff; color:white; border-radius:50%; width:40px; height:40px; display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center; -webkit-justify-content:center; justify-content:center; font-size:24px; box-shadow:0 4px 10px rgba(0,0,0,0.5);">✓</div>' : '') +
                     '</div>' +
                     '<div style="margin-top:25px; font-size:26px; font-weight:bold; color:' + (isActive ? '#bf94ff' : 'white') + ';">' + p.name + '</div>' +
                 '</div>';
             });
 
             // Add Account Button
-            html += '<div id="prof-opt-' + App.profiles.length + '" class="profile-card" style="display:flex; flex-direction:column; align-items:center; width:220px; transition:0.3s; margin: 0 25px;">' +
-                '<div class="avatar-container" style="width:180px; height:180px; border-radius:50%; background:#1f1f23; border:6px dashed #3a3a3d; display:flex; align-items:center; justify-content:center; margin-bottom:25px; transition: 0.3s;">' +
-                    '<div style="font-size:80px; color:#adadb8; font-weight:100; line-height:0; display:flex; align-items:center; justify-content:center; width: 100%; height: 100%;">+</div>' +
+            html += '<div id="prof-opt-' + App.profiles.length + '" class="profile-card" style="display:-webkit-flex; display:flex; -webkit-flex-direction:column; flex-direction:column; -webkit-align-items:center; align-items:center; width:220px; transition:0.3s; margin: 0 25px;">' +
+                '<div class="avatar-container" style="width:180px; height:180px; border-radius:50%; background:#1f1f23; border:6px dashed #3a3a3d; display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center; -webkit-justify-content:center; justify-content:center; margin-bottom:25px; transition: 0.3s;">' +
+                    '<div style="font-size:80px; color:#adadb8; font-weight:100; line-height:0; display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center; -webkit-justify-content:center; justify-content:center; width: 100%; height: 100%;">+</div>' +
                 '</div>' +
                 '<div style="font-size:26px; font-weight:bold; color:#adadb8;">' + App.t('add_account').toUpperCase() + '</div>' +
             '</div>';

@@ -73,11 +73,11 @@
             var isLight = document.body.classList.contains('theme-light');
             var titleColor = isLight ? '#000' : 'white';
 
-            var html = '<div id="home-view" style="padding-bottom:60px;">';
+            var html = '<div id="home-view" style="padding-bottom:60px; padding-top:140px;">';
             state.dataRows.forEach(function(row, rowIndex) {
                 if (row.type === 'hero') {
                     // No title for hero row
-                    var wrapperStyle = 'width:100%; overflow:visible; margin-bottom:40px; height:500px; position:relative;';
+                    var wrapperStyle = 'width:100%; overflow:visible; margin-bottom:10px; height:480px; position:relative;';
                     html += '<div style="' + wrapperStyle + '"><div id="row-' + rowIndex + '" class="channel-grid hero-grid"></div></div>';
                 } else {
                     if (row.title) {
@@ -158,6 +158,10 @@
             }, 100);
         },
 
+        onMenuExit: function() {
+            this.updateSelection();
+        },
+
         updateSelection: function() {
             var self = this;
             var rows = state.dataRows;
@@ -169,28 +173,44 @@
                 var activeCol = state.colIndices[rowIndex];
 
                 if (row.type === 'hero') {
-                    // Hero carousel: center the active card, make it bigger
-                    var heroW = 700;
+                    // Circular hero carousel: position each card around the active one
+                    var N = cards.length;
+                    var heroW = 800;
                     var heroGap = 20;
                     var screenW = 1920;
-                    // Center the active card on screen
-                    var offset = Math.round((screenW / 2) - (heroW / 2) - (activeCol * (heroW + heroGap)));
-                    rowDiv.style.transform = 'translateX(' + offset + 'px)';
+                    var centerX = Math.round((screenW / 2) - (heroW / 2));
 
-                    for (var i = 0; i < cards.length; i++) {
+                    // No row-level transform for hero
+                    rowDiv.style.transform = 'none';
+                    rowDiv.style.webkitTransform = 'none';
+
+                    for (var i = 0; i < N; i++) {
                         var card = cards[i];
+                        // Calculate circular distance
+                        var delta = i - activeCol;
+                        if (delta > N / 2) delta -= N;
+                        if (delta < -N / 2) delta += N;
+
+                        var x = centerX + delta * (heroW + heroGap);
+                        card.style.position = 'absolute';
+                        card.style.left = x + 'px';
+                        card.style.top = '15px';
+
                         var isActive = (rowIndex === state.activeRow && i === activeCol && !App.nav.inMenu);
-                        var dist = Math.abs(i - activeCol);
-                        
+                        var absDist = Math.abs(delta);
+
                         card.classList.remove('selected', 'hero-center', 'hero-adjacent');
-                        
+
                         if (isActive) {
                             card.classList.add('selected');
-                        } else if (dist === 0) {
+                        } else if (absDist === 0) {
                             card.classList.add('hero-center');
-                        } else if (dist === 1) {
+                        } else if (absDist === 1) {
                             card.classList.add('hero-adjacent');
                         }
+
+                        // Hide cards too far from center to avoid clutter
+                        card.style.visibility = (absDist <= 3) ? 'visible' : 'hidden';
                     }
                 } else {
                     for (var i = 0; i < cards.length; i++) {
@@ -223,14 +243,22 @@
             if (!currentRowData) return;
 
             if (e.keyCode === 39) { 
-                if (state.colIndices[state.activeRow] < currentRowData.data.length - 1) {
-                    state.colIndices[state.activeRow]++;
+                if (currentRowData.type === 'hero') {
+                    state.colIndices[state.activeRow] = (state.colIndices[state.activeRow] + 1) % currentRowData.data.length;
+                } else {
+                    if (state.colIndices[state.activeRow] < currentRowData.data.length - 1) {
+                        state.colIndices[state.activeRow]++;
+                    }
                 }
                 this.updateSelection();
             }
             if (e.keyCode === 37) { 
-                if (state.colIndices[state.activeRow] > 0) {
-                    state.colIndices[state.activeRow]--;
+                if (currentRowData.type === 'hero') {
+                    state.colIndices[state.activeRow] = (state.colIndices[state.activeRow] - 1 + currentRowData.data.length) % currentRowData.data.length;
+                } else {
+                    if (state.colIndices[state.activeRow] > 0) {
+                        state.colIndices[state.activeRow]--;
+                    }
                 }
                 this.updateSelection();
             }

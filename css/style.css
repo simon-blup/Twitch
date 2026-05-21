@@ -64,15 +64,17 @@ body.theme-light #app-container {
     padding: 0 80px;
     box-sizing: border-box;
     z-index: 100;
-    background: linear-gradient(to bottom, rgba(14, 14, 16, 1) 0%, rgba(14, 14, 16, 0) 100%);
+    background: linear-gradient(to bottom, rgba(14, 14, 16, 1) 0%, rgba(14, 14, 16, 1) 70%, rgba(14, 14, 16, 0) 100%);
+    -webkit-transition: -webkit-transform 0.5s cubic-bezier(0.23, 1, 0.32, 1);
     transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1);
 }
 
 body.theme-light #topbar {
-    background: linear-gradient(to bottom, rgba(247, 247, 248, 1) 0%, rgba(247, 247, 248, 0) 100%);
+    background: linear-gradient(to bottom, rgba(247, 247, 248, 1) 0%, rgba(247, 247, 248, 1) 70%, rgba(247, 247, 248, 0) 100%);
 }
 
 #topbar.hidden-topbar {
+    -webkit-transform: translateY(-100%);
     transform: translateY(-100%);
 }
 
@@ -325,6 +327,8 @@ body:not(.menu-hidden) #content {
     -webkit-align-items: center; align-items: center;
     min-height: 480px;
     padding-bottom: 30px;
+    position: relative;
+    overflow: hidden;
 }
 
 .channel-card,
@@ -392,23 +396,24 @@ body.theme-light .live-avatars-bar {
 
 /* --- HERO ROW (Live Consigliate) --- */
 .hero-card {
-    width: 700px;
-    height: 394px;
-    -webkit-transform: scale(0.85); transform: scale(0.85);
+    width: 800px;
+    height: 450px;
+    -webkit-transform: scale(0.88); transform: scale(0.88);
     opacity: 0.35;
     box-sizing: border-box;
     border: 5px solid transparent;
     border-radius: 20px;
     overflow: hidden;
-    position: relative;
+    position: absolute;
     background-color: #1f1f23;
     flex-shrink: 0;
-    transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+    -webkit-transition: -webkit-transform 0.5s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.5s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.5s cubic-bezier(0.23, 1, 0.32, 1), border-color 0.5s ease;
+    transition: transform 0.5s cubic-bezier(0.23, 1, 0.32, 1), opacity 0.5s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.5s cubic-bezier(0.23, 1, 0.32, 1), border-color 0.5s ease;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
 }
 
 .hero-card.selected {
-    -webkit-transform: scale(1.08); transform: scale(1.08);
+    -webkit-transform: scale(1.1); transform: scale(1.1);
     opacity: 1 !important;
     z-index: 10;
     box-shadow: 0 30px 80px rgba(0, 0, 0, 0.9), 0 0 40px rgba(145, 70, 255, 0.5) !important;
@@ -416,14 +421,14 @@ body.theme-light .live-avatars-bar {
 }
 
 .hero-card.hero-center {
-    -webkit-transform: scale(1); transform: scale(1);
+    -webkit-transform: scale(1.05); transform: scale(1.05);
     opacity: 1;
     z-index: 9;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
 }
 
 .hero-card.hero-adjacent {
-    -webkit-transform: scale(0.9); transform: scale(0.9);
+    -webkit-transform: scale(0.92); transform: scale(0.92);
     opacity: 0.55;
 }
 
@@ -1228,9 +1233,11 @@ body.theme-light .notification-msg {
     background: #18181b; 
     border-left: 1px solid #333; 
     z-index: 1002; 
+    -webkit-transition: -webkit-transform 0.3s cubic-bezier(0.23, 1, 0.32, 1);
     transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1); 
 }
 .player-chat-panel.hidden { 
+    -webkit-transform: translateX(100%);
     transform: translateX(100%); 
 }
 /* LEGACY GAP FIXES */
