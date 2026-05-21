@@ -47,9 +47,8 @@
             var viewArea = document.getElementById('main-view-area');
             if (!viewArea) return;
 
-            var html = '<div id="profile-view" style="padding-top:60px; color:white; display:-webkit-flex; display:flex; -webkit-flex-direction:column; flex-direction:column; -webkit-align-items:center; align-items:center; -webkit-justify-content:center; justify-content:center; width:100%; min-height:calc(100vh - 140px);">' +
-                '<h1 style="font-size:42px; margin-bottom:60px; font-weight:bold; letter-spacing:2px; text-align:center;">' + App.t('accounts_title').toUpperCase() + '</h1>' +
-                '<div id="profiles-list" style="display:-webkit-flex; display:flex; -webkit-justify-content:center; justify-content:center; -webkit-align-items:center; align-items:center; -webkit-flex-wrap:wrap; flex-wrap:wrap;">';
+            var html = '<div id="profile-view" style="color:white; display:-webkit-flex; display:flex; -webkit-flex-direction:column; flex-direction:column; -webkit-align-items:center; align-items:center; -webkit-justify-content:center; justify-content:center; width:100%; height:calc(100vh - 130px);">' +
+                '<div id="profiles-list" style="display:-webkit-flex; display:flex; -webkit-justify-content:center; justify-content:center; -webkit-align-items:center; align-items:center; -webkit-flex-wrap:wrap; flex-wrap:wrap; margin-top:auto; margin-bottom:auto;">';
 
             App.profiles.forEach(function (p, i) {
                 var isActive = p.id === App.activeProfileId;
@@ -189,7 +188,24 @@
         },
 
         handleKey: function (e) {
-            if (!App.auth.token) return;
+            var isBackKey = (e.keyCode === 8 || e.keyCode === 27 || e.keyCode === 461 || e.keyCode === 10009);
+            if (!App.auth.token) {
+                if (isBackKey && App.profiles && App.profiles.length > 0) {
+                    state.isPolling = false;
+                    clearInterval(state.pollInterval);
+                    App.authManager.loadProfiles();
+                    var activeIdx = 0;
+                    for (var i = 0; i < App.profiles.length; i++) {
+                        if (App.profiles[i].id === App.activeProfileId) {
+                            activeIdx = i;
+                            break;
+                        }
+                    }
+                    state.activeRow = activeIdx;
+                    this.renderAuthenticated();
+                }
+                return;
+            }
             var maxIdx = App.profiles.length;
 
             if (e.keyCode === 39 && state.activeRow < maxIdx) { state.activeRow++; this.updateSelection(); }

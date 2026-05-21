@@ -4,7 +4,9 @@
         activeRow: 0,
         colIndices: [],
         originalHeroCount: 0,
-        seqId: 0
+        seqId: 0,
+        categoryCursor: null,
+        isLoadingMoreCategories: false
     };
 
     App.modules.home = {
@@ -14,7 +16,9 @@
                 activeRow: 0,
                 colIndices: [],
                 originalHeroCount: 0,
-                seqId: Date.now()
+                seqId: Date.now(),
+                categoryCursor: null,
+                isLoadingMoreCategories: false
             };
         },
 
@@ -44,11 +48,12 @@
                     }
                 })
                 .then(function() {
-                    return App.api.twitchFetch('https://api.twitch.tv/helix/games/top?first=10', {}, 120);
+                    return App.api.twitchFetch('https://api.twitch.tv/helix/games/top?first=15', {}, 120);
                 })
                 .then(function(catRes) {
                     if (catRes.data && catRes.data.length > 0) {
                         state.dataRows.push({ title: App.t('top_cats'), type: 'category', data: catRes.data });
+                        state.categoryCursor = (catRes.pagination && catRes.pagination.cursor) ? catRes.pagination.cursor : null;
                     }
 
                     if (mySeq !== state.seqId) return;
@@ -248,6 +253,9 @@
                 } else {
                     if (state.colIndices[state.activeRow] < currentRowData.data.length - 1) {
                         state.colIndices[state.activeRow]++;
+                        if (currentRowData.type === 'category') {
+                            this.checkLoadMoreCategories();
+                        }
                     }
                 }
                 this.updateSelection();
@@ -297,6 +305,45 @@
                 App.nav.inMenu = true;
                 App.nav.update();
                 this.updateSelection();
+            }
+        },
+
+        checkLoadMoreCategories: function() {
+            var self = this;
+            var currentRowData = state.dataRows[state.activeRow];
+            if (!currentRowData || currentRowData.type !== 'category') return;
+
+            var activeCol = state.colIndices[state.activeRow];
+            var currentLength = currentRowData.data.length;
+
+            if (activeCol >= currentLength - 5 && state.categoryCursor && !state.isLoadingMoreCategories) {
+                state.isLoadingMoreCategories = true;
+                var url = 'https://api.twitch.tv/helix/games/top?first=15&after=' + state.categoryCursor;
+                App.api.twitchFetch(url, {}, 120)
+                    .then(function(catRes) {
+                        state.isLoadingMoreCategories = false;
+                        if (catRes.data && catRes.data.length > 0) {
+                            currentRowData.data = currentRowData.data.concat(catRes.data);
+                            state.categoryCursor = (catRes.pagination && catRes.pagination.cursor) ? catRes.pagination.cursor : null;
+
+                            var rowDiv = document.getElementById('row-' + state.activeRow);
+                            if (rowDiv) {
+                                catRes.data.forEach(function(item) {
+                                    var card = document.createElement('div');
+                                    card.className = 'category-card';
+                                    var thumb = App.utils.getSafeThumb(item.box_art_url, 'category');
+
+                                    card.innerHTML = '<img src="' + thumb + '" loading="lazy" onerror="this.src=\'icon.png\'" style="width:100%; height:100%; object-fit:cover;">' +
+                                        '<div class="card-info"><div style="font-size:20px; font-weight:bold; color:white;">' + item.name + '</div></div>';
+                                    rowDiv.appendChild(card);
+                                });
+                            }
+                        }
+                    })
+                    .catch(function(e) {
+                        state.isLoadingMoreCategories = false;
+                        console.error("Error loading more categories:", e);
+                    });
             }
         },
 
