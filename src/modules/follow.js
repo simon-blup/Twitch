@@ -186,8 +186,10 @@
                     });
                 } else if (currentRowData.type === 'avatars') {
                     var user = currentRowData.data[state.activeCol];
-                    App.nav.navigateTo('player').then(function() {
-                        App.modules.player.openNativePlayer(user.login || user.display_name, user.id, '');
+                    App.nav.navigateTo('channel').then(function() {
+                        if (App.modules.channel && App.modules.channel.openChannelView) {
+                            App.modules.channel.openChannelView(user.login || user.display_name);
+                        }
                     });
                 }
             }

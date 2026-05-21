@@ -322,9 +322,8 @@ body:not(.menu-hidden) #content {
 
 /* Griglia hero con allineamento verticale in basso */
 .channel-grid.hero-grid {
-    -webkit-align-items: ; align-items: ;
-    /* gap:  */
-    min-height: 550px;
+    -webkit-align-items: center; align-items: center;
+    min-height: 480px;
     padding-bottom: 30px;
 }
 
@@ -336,7 +335,6 @@ body:not(.menu-hidden) #content {
     position: relative;
     transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
     opacity: 0.85;
-    -webkit-transform: ; transform: ;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
     flex-shrink: 0;
     box-sizing: border-box;
@@ -359,7 +357,7 @@ body.theme-light .category-card {
     bottom: 0;
     width: 100%;
     display: -webkit-flex; display: flex;
-    -webkit-justify-content: ; justify-content: ;
+    -webkit-justify-content: center; justify-content: center;
     flex-wrap: wrap;
     /* gap:  */
     padding: 20px 80px;
@@ -382,7 +380,7 @@ body.theme-light .live-avatars-bar {
 }
 
 .live-avatar-small.selected {
-    -webkit-transform: ; transform: ;
+    -webkit-transform: scale(1.15); transform: scale(1.15);
     border-color: #9146ff;
     box-shadow: 0 10px 20px rgba(145, 70, 255, 0.6);
 }
@@ -394,38 +392,45 @@ body.theme-light .live-avatars-bar {
 
 /* --- HERO ROW (Live Consigliate) --- */
 .hero-card {
-    width: 800px;
-    height: 450px;
-    -webkit-transform: ; transform: ;
-    opacity: 0.3;
+    width: 700px;
+    height: 394px;
+    -webkit-transform: scale(0.85); transform: scale(0.85);
+    opacity: 0.35;
     box-sizing: border-box;
     border: 5px solid transparent;
+    border-radius: 20px;
+    overflow: hidden;
+    position: relative;
+    background-color: #1f1f23;
+    flex-shrink: 0;
+    transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
 }
 
 .hero-card.selected {
-    -webkit-transform: ; transform: ;
+    -webkit-transform: scale(1.08); transform: scale(1.08);
     opacity: 1 !important;
     z-index: 10;
-    box-shadow: 0 40px 120px rgba(0, 0, 0, 0.9), 0 0 60px rgba(145, 70, 255, 0.6) !important;
+    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.9), 0 0 40px rgba(145, 70, 255, 0.5) !important;
     border: 5px solid #bf94ff;
 }
 
 .hero-card.hero-center {
-    -webkit-transform: ; transform: ;
+    -webkit-transform: scale(1); transform: scale(1);
     opacity: 1;
     z-index: 9;
-    box-shadow: 0 30px 90px rgba(0, 0, 0, 0.8);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8);
 }
 
 .hero-card.hero-adjacent {
-    -webkit-transform: ; transform: ;
-    opacity: 0.6;
+    -webkit-transform: scale(0.9); transform: scale(0.9);
+    opacity: 0.55;
 }
 
 .channel-card.selected,
 .category-card.selected {
     opacity: 1;
-    -webkit-transform: ; transform: ;
+    -webkit-transform: scale(1.05); transform: scale(1.05);
     box-shadow: 0 20px 70px rgba(0, 0, 0, 0.8), 0 0 25px rgba(145, 70, 255, 0.5);
     border: 4px solid #bf94ff;
     z-index: 5;

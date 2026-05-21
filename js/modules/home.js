@@ -29,7 +29,7 @@
             return App.api.twitchFetch('https://api.twitch.tv/helix/streams?first=10', {}, 60)
                 .then(function(recRes) {
                     if (recRes.data && recRes.data.length > 0) {
-                        state.dataRows.push({ title: App.t('live_recom') || "Recommended", type: "stream", data: recRes.data });
+                        state.dataRows.push({ title: '', type: "hero", data: recRes.data });
                     }
 
                     if (!App.settings.performanceMode) {
@@ -75,11 +75,17 @@
 
             var html = '<div id="home-view" style="padding-bottom:60px;">';
             state.dataRows.forEach(function(row, rowIndex) {
-                if (row.title) {
-                    html += '<h3 style="color:' + titleColor + '; margin-left:80px; margin-bottom:30px; font-size:26px;">' + row.title + '</h3>';
+                if (row.type === 'hero') {
+                    // No title for hero row
+                    var wrapperStyle = 'width:100%; overflow:visible; margin-bottom:40px; height:500px; position:relative;';
+                    html += '<div style="' + wrapperStyle + '"><div id="row-' + rowIndex + '" class="channel-grid hero-grid"></div></div>';
+                } else {
+                    if (row.title) {
+                        html += '<h3 style="color:' + titleColor + '; margin-left:80px; margin-bottom:30px; font-size:26px;">' + row.title + '</h3>';
+                    }
+                    var wrapperStyle = 'width:100%; overflow:visible; margin-bottom:40px;';
+                    html += '<div style="' + wrapperStyle + '"><div id="row-' + rowIndex + '" class="channel-grid"></div></div>';
                 }
-                var wrapperStyle = 'width:100%; overflow:visible; perspective:1200px; margin-bottom:40px;';
-                html += '<div style="' + wrapperStyle + '"><div id="row-' + rowIndex + '" class="channel-grid"></div></div>';
             });
             html += '</div>';
             viewArea.innerHTML = html;
@@ -96,6 +102,21 @@
 
                         card.innerHTML = '<img src="' + thumb + '" loading="lazy" onerror="this.src=\'icon.png\'" style="width:100%; height:100%; object-fit:cover;">' +
                             '<div class="card-info"><div style="font-size:20px; font-weight:bold; color:white;">' + item.name + '</div></div>';
+                        rowDiv.appendChild(card);
+                    });
+                } else if (row.type === 'hero') {
+                    row.data.forEach(function(item) {
+                        var card = document.createElement('div');
+                        card.className = 'hero-card';
+                        var thumb = App.utils.getSafeThumb(item.thumbnail_url, 'stream');
+                        var viewers = App.utils.formatViewers(item.viewer_count);
+                        card.innerHTML = '<div class="badge-live">' + App.t('live_badge') + '</div>' +
+                            '<div class="badge-viewers">' + viewers + '</div>' +
+                            '<img src="' + thumb + '" loading="lazy" onerror="this.src=\'icon.png\'" style="width:100%; height:100%; object-fit:cover; border-radius:20px;">' +
+                            '<div class="card-info">' +
+                                '<div style="font-size:24px; font-weight:bold; color:white;">' + item.user_name + '</div>' +
+                                '<div style="font-size:16px; color:#adadb8; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + item.title + '</div>' +
+                            '</div>';
                         rowDiv.appendChild(card);
                     });
                 } else if (row.type === 'stream') {
@@ -120,7 +141,7 @@
                 var rowDiv = document.getElementById('row-' + rowIndex);
                 if (!rowDiv) return;
                 rowDiv.style.transition = 'none';
-                var cards = rowDiv.querySelectorAll('.channel-card, .category-card');
+                var cards = rowDiv.querySelectorAll('.channel-card, .category-card, .hero-card');
                 for (var i = 0; i < cards.length; i++) cards[i].style.transition = 'none';
             });
 
@@ -131,7 +152,7 @@
                     var rowDiv = document.getElementById('row-' + rowIndex);
                     if (!rowDiv) return;
                     rowDiv.style.transition = '';
-                    var cards = rowDiv.querySelectorAll('.channel-card, .category-card');
+                    var cards = rowDiv.querySelectorAll('.channel-card, .category-card, .hero-card');
                     for (var i = 0; i < cards.length; i++) cards[i].style.transition = '';
                 });
             }, 100);
@@ -144,20 +165,46 @@
                 var rowDiv = document.getElementById('row-' + rowIndex);
                 if (!rowDiv) return;
 
-                var cards = rowDiv.querySelectorAll('.channel-card, .category-card');
+                var cards = rowDiv.querySelectorAll('.channel-card, .category-card, .hero-card');
                 var activeCol = state.colIndices[rowIndex];
 
-                for (var i = 0; i < cards.length; i++) {
-                    var card = cards[i];
-                    var isSelected = (rowIndex === state.activeRow && i === activeCol && !App.nav.inMenu);
-                    card.classList.toggle('selected', isSelected);
-                }
+                if (row.type === 'hero') {
+                    // Hero carousel: center the active card, make it bigger
+                    var heroW = 700;
+                    var heroGap = 20;
+                    var screenW = 1920;
+                    // Center the active card on screen
+                    var offset = Math.round((screenW / 2) - (heroW / 2) - (activeCol * (heroW + heroGap)));
+                    rowDiv.style.transform = 'translateX(' + offset + 'px)';
 
-                var cardWidth = row.type === 'category' ? 300 : 600;
-                var gap = 20;
-                var offset = 80 - (activeCol * (cardWidth + gap));
-                if (offset > 80) offset = 80;
-                rowDiv.style.transform = 'translateX(' + offset + 'px)';
+                    for (var i = 0; i < cards.length; i++) {
+                        var card = cards[i];
+                        var isActive = (rowIndex === state.activeRow && i === activeCol && !App.nav.inMenu);
+                        var dist = Math.abs(i - activeCol);
+                        
+                        card.classList.remove('selected', 'hero-center', 'hero-adjacent');
+                        
+                        if (isActive) {
+                            card.classList.add('selected');
+                        } else if (dist === 0) {
+                            card.classList.add('hero-center');
+                        } else if (dist === 1) {
+                            card.classList.add('hero-adjacent');
+                        }
+                    }
+                } else {
+                    for (var i = 0; i < cards.length; i++) {
+                        var card = cards[i];
+                        var isSelected = (rowIndex === state.activeRow && i === activeCol && !App.nav.inMenu);
+                        card.classList.toggle('selected', isSelected);
+                    }
+
+                    var cardWidth = row.type === 'category' ? 300 : 600;
+                    var gap = 20;
+                    var offset = 80 - (activeCol * (cardWidth + gap));
+                    if (offset > 80) offset = 80;
+                    rowDiv.style.transform = 'translateX(' + offset + 'px)';
+                }
             });
 
             if (App.nav.inMenu) {
@@ -209,7 +256,7 @@
                             App.modules.category.open(selectedCategory);
                         }
                     });
-                } else if (currentRowData.type === 'stream') {
+                } else if (currentRowData.type === 'stream' || currentRowData.type === 'hero') {
                     var selectedStream = currentRowData.data[state.colIndices[state.activeRow]];
                     App.nav.navigateTo('player').then(function() {
                         if (App.modules.player && App.modules.player.openNativePlayer) {
