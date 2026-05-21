@@ -47,8 +47,30 @@
             var viewArea = document.getElementById('main-view-area');
             if (!viewArea) return;
 
-            var html = '<div id="profile-view" style="color:white; display:-webkit-flex; display:flex; -webkit-flex-direction:column; flex-direction:column; -webkit-align-items:center; align-items:center; -webkit-justify-content:center; justify-content:center; width:100%; height:calc(100vh - 130px);">' +
-                '<div id="profiles-list" style="display:-webkit-flex; display:flex; -webkit-justify-content:center; justify-content:center; -webkit-align-items:center; align-items:center; -webkit-flex-wrap:wrap; flex-wrap:wrap; margin-top:auto; margin-bottom:auto;">';
+            var html = '<style>' +
+                '#profile-view {' +
+                    'position: fixed;' +
+                    'left: 0;' +
+                    'right: 0;' +
+                    'bottom: 0;' +
+                    'z-index: 10;' +
+                    'color: white;' +
+                    'display: -webkit-flex;' +
+                    'display: flex;' +
+                    '-webkit-flex-direction: column;' +
+                    'flex-direction: column;' +
+                    '-webkit-align-items: center;' +
+                    'align-items: center;' +
+                    '-webkit-justify-content: center;' +
+                    'justify-content: center;' +
+                    '-webkit-transition: top 0.5s cubic-bezier(0.23, 1, 0.32, 1);' +
+                    'transition: top 0.5s cubic-bezier(0.23, 1, 0.32, 1);' +
+                '}' +
+                'body.menu-hidden #profile-view { top: 0px; }' +
+                'body:not(.menu-hidden) #profile-view { top: 140px; }' +
+                '</style>' +
+                '<div id="profile-view">' +
+                '<div id="profiles-list" style="display:-webkit-flex; display:flex; -webkit-justify-content:center; justify-content:center; -webkit-align-items:center; align-items:center; -webkit-flex-wrap:wrap; flex-wrap:wrap;">';
 
             App.profiles.forEach(function (p, i) {
                 var isActive = p.id === App.activeProfileId;
