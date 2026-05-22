@@ -122,14 +122,14 @@
                     '</div>' +
                     '<div id="section-1" class="category-bottom-section">' +
                         '<div style="width: 100%; overflow: visible;">' +
-                            '<div id="cat-streams-strip" style="display:flex; flex-direction:row; padding: 10px 80px; transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1); transform: translateX(0px);">' +
+                            '<div id="cat-streams-strip" style="display:flex; flex-wrap:wrap; flex-direction:row; padding: 10px 80px; box-sizing:border-box;">' +
                                 this.renderStreamItems() +
                             '</div>' +
                         '</div>' +
                     '</div>' +
                     '<div id="section-3" class="category-bottom-section" style="' + (state.clips.length === 0 ? 'display:none;' : '') + '">' +
                         '<div style="width: 100%; overflow: visible;">' +
-                            '<div id="cat-clips-strip" style="display:flex; flex-direction:row; padding: 10px 80px; transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1); transform: translateX(0px);">' +
+                            '<div id="cat-clips-strip" style="display:flex; flex-wrap:wrap; flex-direction:row; padding: 10px 80px; box-sizing:border-box;">' +
                                 this.renderClipItems() +
                             '</div>' +
                         '</div>' +
@@ -149,8 +149,8 @@
                         '<div class="badge-viewers">' + App.utils.formatViewers(s.viewer_count) + '</div>' +
                         '<img src="' + thumb + '" style="width:100%; height:100%; object-fit:cover;">' +
                         '<div class="card-info">' +
-                            '<div style="font-size:22px; font-weight:bold; color:white;">' + s.user_name + '</div>' +
-                            '<div style="font-size:16px; color:#adadb8; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + s.title + '</div>' +
+                            '<div style="font-size:14px; font-weight:bold; color:white;">' + s.user_name + '</div>' +
+                            '<div style="font-size:11px; color:#adadb8; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + s.title + '</div>' +
                         '</div>' +
                     '</div>';
             }).join('');
@@ -164,8 +164,8 @@
                         '<div class="badge-viewers no-dot" style="top:20px; right:20px; bottom:auto; left:auto;">' + App.utils.formatViewers(c.view_count) + ' views</div>' +
                         '<img src="' + thumb + '" style="width:100%; height:100%; object-fit:cover;">' +
                         '<div class="card-info">' +
-                            '<div style="font-size:22px; font-weight:bold; color:white;">' + c.title + '</div>' +
-                            '<div style="font-size:16px; color:#adadb8; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + c.creator_name + '</div>' +
+                            '<div style="font-size:14px; font-weight:bold; color:white;">' + c.title + '</div>' +
+                            '<div style="font-size:11px; color:#adadb8; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + c.creator_name + '</div>' +
                         '</div>' +
                     '</div>';
             }).join('');
@@ -175,64 +175,93 @@
             var cards = document.querySelectorAll('.channel-card');
             for (var i = 0; i < cards.length; i++) cards[i].classList.remove('selected');
 
-            var targetContainer = null;
             if (state.activeSection === 1) {
                 var item = document.getElementById('cat-item-1-' + state.streamCol);
-                if (item) item.classList.add('selected');
-                var strip = document.getElementById('cat-streams-strip');
-                if (strip) strip.style.transform = 'translateX(-' + (state.streamCol * 580) + 'px)';
-                targetContainer = document.getElementById('section-1');
+                if (item && !App.nav.inMenu) {
+                    item.classList.add('selected');
+                    item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
             } else if (state.activeSection === 3) {
                 var item = document.getElementById('cat-item-3-' + state.clipCol);
-                if (item) item.classList.add('selected');
-                var strip = document.getElementById('cat-clips-strip');
-                if (strip) strip.style.transform = 'translateX(-' + (state.clipCol * 580) + 'px)';
-                targetContainer = document.getElementById('section-3');
+                if (item && !App.nav.inMenu) {
+                    item.classList.add('selected');
+                    item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
             }
 
-            if (targetContainer) {
-                targetContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            } else if (App.nav.inMenu) {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-            }
+            if (App.nav.inMenu) window.scrollTo({ top: 0, behavior: 'smooth' });
         },
 
         handleKey: function(e) {
             var self = this;
             if (e.keyCode === 39) { 
                 if (state.activeSection === 1) {
-                    if (state.streamCol < state.streams.length - 1) {
+                    if (state.streamCol % 3 < 2 && state.streamCol < state.streams.length - 1) {
                         state.streamCol++;
                         if (state.streamCol >= state.visibleStreams - 2) {
-                            state.visibleStreams += 3;
+                            state.visibleStreams += 6;
                             document.getElementById('cat-streams-strip').innerHTML = this.renderStreamItems();
                         }
                     }
                 } else if (state.activeSection === 3) {
-                    if (state.clipCol < state.clips.length - 1) {
+                    if (state.clipCol % 3 < 2 && state.clipCol < state.clips.length - 1) {
                         state.clipCol++;
                         if (state.clipCol >= state.visibleClips - 2) {
-                            state.visibleClips += 3;
+                            state.visibleClips += 6;
                             document.getElementById('cat-clips-strip').innerHTML = this.renderClipItems();
                         }
                     }
                 }
             } else if (e.keyCode === 37) { 
-                if (state.activeSection === 1 && state.streamCol > 0) {
-                    state.streamCol--;
-                } else if (state.activeSection === 3 && state.clipCol > 0) {
-                    state.clipCol--;
+                if (state.activeSection === 1) {
+                    if (state.streamCol % 3 > 0) {
+                        state.streamCol--;
+                    }
+                } else if (state.activeSection === 3) {
+                    if (state.clipCol % 3 > 0) {
+                        state.clipCol--;
+                    }
                 }
             } else if (e.keyCode === 40) { 
-                if (state.activeSection === 1 && state.clips.length > 0) {
-                    state.activeSection = 3;
+                if (state.activeSection === 1) {
+                    if (state.streamCol + 3 < state.streams.length) {
+                        state.streamCol += 3;
+                        if (state.streamCol >= state.visibleStreams - 3) {
+                            state.visibleStreams += 6;
+                            document.getElementById('cat-streams-strip').innerHTML = this.renderStreamItems();
+                        }
+                    } else if (state.clips.length > 0) {
+                        state.activeSection = 3;
+                        state.clipCol = Math.min(state.streamCol % 3, state.clips.length - 1);
+                    }
+                } else if (state.activeSection === 3) {
+                    if (state.clipCol + 3 < state.clips.length) {
+                        state.clipCol += 3;
+                        if (state.clipCol >= state.visibleClips - 3) {
+                            state.visibleClips += 6;
+                            document.getElementById('cat-clips-strip').innerHTML = this.renderClipItems();
+                        }
+                    }
                 }
             } else if (e.keyCode === 38) { 
-                if (state.activeSection === 3 && state.streams.length > 0) {
-                    state.activeSection = 1;
-                } else {
-                    App.nav.inMenu = true;
-                    App.nav.update();
+                if (state.activeSection === 1) {
+                    if (state.streamCol >= 3) {
+                        state.streamCol -= 3;
+                    } else {
+                        App.nav.inMenu = true;
+                        App.nav.update();
+                    }
+                } else if (state.activeSection === 3) {
+                    if (state.clipCol >= 3) {
+                        state.clipCol -= 3;
+                    } else if (state.streams.length > 0) {
+                        state.activeSection = 1;
+                        var lastRowStart = Math.floor((state.streams.length - 1) / 3) * 3;
+                        state.streamCol = Math.min(lastRowStart + (state.clipCol % 3), state.streams.length - 1);
+                    } else {
+                        App.nav.inMenu = true;
+                        App.nav.update();
+                    }
                 }
             } else if (e.keyCode === 13) { 
                 if (state.activeSection === 1) {

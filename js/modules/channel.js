@@ -151,7 +151,7 @@
                     '</div>' +
                     '<div id="section-1" class="channel-bottom-section" style="' + (state.vods.length === 0 ? 'display:none;' : '') + '">' +
                         '<div style="width: 100%; overflow: visible;">' +
-                            '<div id="chan-vods-strip" style="display:-webkit-flex; display:flex; -webkit-flex-direction:row; flex-direction:row; padding: 10px 80px; -webkit-transition: -webkit-transform 0.3s cubic-bezier(0.23, 1, 0.32, 1); transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1); -webkit-transform: translateX(0px); transform: translateX(0px);">' +
+                            '<div id="chan-vods-strip" style="display:-webkit-flex; display:flex; -webkit-flex-wrap:wrap; flex-wrap:wrap; -webkit-flex-direction:row; flex-direction:row; padding: 10px 80px; box-sizing:border-box;">' +
                                 this.renderVodItems() +
                             '</div>' +
                         '</div>' +
@@ -175,8 +175,8 @@
                         durationBadge + viewerBadge +
                         '<img src="' + thumb + '" onerror="this.src=\'https://vod-secure.twitch.tv/_404/404_processing_600x338.png\'" style="width:100%; height:100%; object-fit:cover;">' +
                         '<div class="card-info">' +
-                            '<div style="font-size:22px; font-weight:bold; color:white;">' + v.title + '</div>' +
-                            '<div style="font-size:16px; color:#adadb8; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + new Date(v.created_at).toLocaleDateString() + '</div>' +
+                            '<div style="font-size:14px; font-weight:bold; color:white;">' + v.title + '</div>' +
+                            '<div style="font-size:11px; color:#adadb8; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + new Date(v.created_at).toLocaleDateString() + '</div>' +
                         '</div>' +
                     '</div>';
             }).join('');
@@ -188,14 +188,10 @@
 
             if (state.activeSection === 1) {
                 var item = document.getElementById('chan-item-1-' + state.vodCol);
-                if (item && !App.nav.inMenu) item.classList.add('selected');
-                var strip = document.getElementById('chan-vods-strip');
-                if (strip) {
-                    strip.style.webkitTransform = 'translateX(-' + (state.vodCol * 580) + 'px)';
-                    strip.style.transform = 'translateX(-' + (state.vodCol * 580) + 'px)';
+                if (item && !App.nav.inMenu) {
+                    item.classList.add('selected');
+                    item.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
-                var targetContainer = document.getElementById('section-1');
-                if (targetContainer && !App.nav.inMenu) targetContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
 
             if (App.nav.inMenu) window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -204,18 +200,36 @@
         handleKey: function(e) {
             if (e.keyCode === 39) { 
                 if (state.activeSection === 1) {
-                    if (state.vodCol < state.vods.length - 1) {
+                    if (state.vodCol % 3 < 2 && state.vodCol < state.vods.length - 1) {
                         state.vodCol++;
                         if (state.vodCol >= state.visibleVods - 2) {
-                            state.visibleVods += 3;
+                            state.visibleVods += 6;
                             document.getElementById('chan-vods-strip').innerHTML = this.renderVodItems();
                         }
                     }
                 }
             } else if (e.keyCode === 37) { 
-                if (state.activeSection === 1 && state.vodCol > 0) state.vodCol--;
+                if (state.activeSection === 1) {
+                    if (state.vodCol % 3 > 0) {
+                        state.vodCol--;
+                    }
+                }
+            } else if (e.keyCode === 40) { 
+                if (state.activeSection === 1) {
+                    if (state.vodCol + 3 < state.vods.length) {
+                        state.vodCol += 3;
+                        if (state.vodCol >= state.visibleVods - 3) {
+                            state.visibleVods += 6;
+                            document.getElementById('chan-vods-strip').innerHTML = this.renderVodItems();
+                        }
+                    }
+                }
             } else if (e.keyCode === 38) { 
-                // Disattivato l'inserimento nel menu in questa pagina
+                if (state.activeSection === 1) {
+                    if (state.vodCol >= 3) {
+                        state.vodCol -= 3;
+                    }
+                }
             } else if (e.keyCode === 13) { 
                 if (state.activeSection === 1) {
                     var v = state.vods[state.vodCol];

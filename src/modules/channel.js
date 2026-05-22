@@ -172,14 +172,14 @@
                     '</div>' +
                     '<div id="section-1" class="channel-bottom-section" style="' + (state.vods.length === 0 ? 'display:none;' : '') + '">' +
                         '<div style="width: 100%; overflow: visible;">' +
-                            '<div id="chan-vods-strip" style="display:flex; padding: 10px 80px; transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1); transform: translateX(0px);">' +
+                            '<div id="chan-vods-strip" style="display:flex; flex-wrap:wrap; flex-direction:row; padding: 10px 80px; box-sizing:border-box;">' +
                                 this.renderVodItems() +
                             '</div>' +
                         '</div>' +
                     '</div>' +
                     '<div id="section-3" class="channel-bottom-section" style="' + (state.clips.length === 0 && state.vods.length > 0 ? 'display:none;' : '') + '">' +
                         '<div style="width: 100%; overflow: visible;">' +
-                            '<div id="chan-clips-strip" style="display:flex; flex-direction:row; padding: 10px 80px; transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1); transform: translateX(0px);">' +
+                            '<div id="chan-clips-strip" style="display:flex; flex-wrap:wrap; flex-direction:row; padding: 10px 80px; box-sizing:border-box;">' +
                                 this.renderClipItems() +
                             '</div>' +
                         '</div>' +
@@ -203,8 +203,8 @@
                         durationBadge + viewerBadge +
                         '<img src="' + thumb + '" onerror="this.src=\'https://vod-secure.twitch.tv/_404/404_processing_600x338.png\'" style="width:100%; height:100%; object-fit:cover;">' +
                         '<div class="card-info">' +
-                            '<div style="font-size:22px; font-weight:bold; color:white;">' + v.title + '</div>' +
-                            '<div style="font-size:16px; color:#adadb8; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + new Date(v.created_at).toLocaleDateString() + '</div>' +
+                            '<div style="font-size:14px; font-weight:bold; color:white;">' + v.title + '</div>' +
+                            '<div style="font-size:11px; color:#adadb8; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + new Date(v.created_at).toLocaleDateString() + '</div>' +
                         '</div>' +
                     '</div>';
             }).join('');
@@ -217,8 +217,8 @@
                         '<div class="badge-viewers no-dot" style="top:20px; right:20px; bottom:auto; left:auto;">' + App.utils.formatViewers(c.view_count) + ' views</div>' +
                         '<img src="' + c.thumbnail_url + '" loading="lazy" style="width:100%; height:100%; object-fit:cover;">' +
                         '<div class="card-info">' +
-                            '<div style="font-size:22px; font-weight:bold; color:white;">' + c.title + '</div>' +
-                            '<div style="font-size:16px; color:#adadb8; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + c.creator_name + '</div>' +
+                            '<div style="font-size:14px; font-weight:bold; color:white;">' + c.title + '</div>' +
+                            '<div style="font-size:11px; color:#adadb8; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + c.creator_name + '</div>' +
                         '</div>' +
                     '</div>';
             }).join('');
@@ -228,51 +228,87 @@
             var cards = document.querySelectorAll('.channel-card');
             for (var i = 0; i < cards.length; i++) cards[i].classList.remove('selected');
 
-            var targetContainer = null;
             if (state.activeSection === 1) {
                 var item = document.getElementById('chan-item-1-' + state.vodCol);
-                if (item) item.classList.add('selected');
-                var strip = document.getElementById('chan-vods-strip');
-                if (strip) strip.style.transform = 'translateX(-' + (state.vodCol * 580) + 'px)';
-                targetContainer = document.getElementById('section-1');
+                if (item && !App.nav.inMenu) {
+                    item.classList.add('selected');
+                    item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
             } else if (state.activeSection === 3) {
                 var item = document.getElementById('chan-item-3-' + state.clipCol);
-                if (item) item.classList.add('selected');
-                var strip = document.getElementById('chan-clips-strip');
-                if (strip) strip.style.transform = 'translateX(-' + (state.clipCol * 580) + 'px)';
-                targetContainer = document.getElementById('section-3');
+                if (item && !App.nav.inMenu) {
+                    item.classList.add('selected');
+                    item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
             }
 
-            if (targetContainer) targetContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            else if (App.nav.inMenu) window.scrollTo({ top: 0, behavior: 'smooth' });
+            if (App.nav.inMenu) window.scrollTo({ top: 0, behavior: 'smooth' });
         },
 
         handleKey: function(e) {
             if (e.keyCode === 39) { 
                 if (state.activeSection === 1) {
-                    if (state.vodCol < state.vods.length - 1) {
+                    if (state.vodCol % 3 < 2 && state.vodCol < state.vods.length - 1) {
                         state.vodCol++;
                         if (state.vodCol >= state.visibleVods - 2) {
-                            state.visibleVods += 3;
+                            state.visibleVods += 6;
                             document.getElementById('chan-vods-strip').innerHTML = this.renderVodItems();
                         }
                     }
                 } else if (state.activeSection === 3) {
-                    if (state.clipCol < state.clips.length - 1) {
+                    if (state.clipCol % 3 < 2 && state.clipCol < state.clips.length - 1) {
                         state.clipCol++;
                         if (state.clipCol >= state.visibleClips - 2) {
-                            state.visibleClips += 3;
+                            state.visibleClips += 6;
                             document.getElementById('chan-clips-strip').innerHTML = this.renderClipItems();
                         }
                     }
                 }
             } else if (e.keyCode === 37) { 
-                if (state.activeSection === 1 && state.vodCol > 0) state.vodCol--;
-                else if (state.activeSection === 3 && state.clipCol > 0) state.clipCol--;
+                if (state.activeSection === 1) {
+                    if (state.vodCol % 3 > 0) {
+                        state.vodCol--;
+                    }
+                } else if (state.activeSection === 3) {
+                    if (state.clipCol % 3 > 0) {
+                        state.clipCol--;
+                    }
+                }
             } else if (e.keyCode === 40) { 
-                if (state.activeSection === 1 && state.clips.length > 0) state.activeSection = 3;
+                if (state.activeSection === 1) {
+                    if (state.vodCol + 3 < state.vods.length) {
+                        state.vodCol += 3;
+                        if (state.vodCol >= state.visibleVods - 3) {
+                            state.visibleVods += 6;
+                            document.getElementById('chan-vods-strip').innerHTML = this.renderVodItems();
+                        }
+                    } else if (state.clips.length > 0) {
+                        state.activeSection = 3;
+                        state.clipCol = Math.min(state.vodCol % 3, state.clips.length - 1);
+                    }
+                } else if (state.activeSection === 3) {
+                    if (state.clipCol + 3 < state.clips.length) {
+                        state.clipCol += 3;
+                        if (state.clipCol >= state.visibleClips - 3) {
+                            state.visibleClips += 6;
+                            document.getElementById('chan-clips-strip').innerHTML = this.renderClipItems();
+                        }
+                    }
+                }
             } else if (e.keyCode === 38) { 
-                if (state.activeSection === 3 && state.vods.length > 0) state.activeSection = 1;
+                if (state.activeSection === 1) {
+                    if (state.vodCol >= 3) {
+                        state.vodCol -= 3;
+                    }
+                } else if (state.activeSection === 3) {
+                    if (state.clipCol >= 3) {
+                        state.clipCol -= 3;
+                    } else if (state.vods.length > 0) {
+                        state.activeSection = 1;
+                        var lastRowStart = Math.floor((state.vods.length - 1) / 3) * 3;
+                        state.vodCol = Math.min(lastRowStart + (state.clipCol % 3), state.vods.length - 1);
+                    }
+                }
             } else if (e.keyCode === 13) { 
                 if (state.activeSection === 1) {
                     var v = state.vods[state.vodCol];

@@ -96,7 +96,7 @@
                     '</div>' +
                     '<div id="section-1" class="category-bottom-section">' +
                         '<div style="width: 100%; overflow: visible;">' +
-                            '<div id="cat-streams-strip" style="display:-webkit-flex; display:flex; -webkit-flex-direction:row; flex-direction:row; padding: 10px 80px; -webkit-transition: -webkit-transform 0.3s cubic-bezier(0.23, 1, 0.32, 1); transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1); -webkit-transform: translateX(0px); transform: translateX(0px);">' +
+                            '<div id="cat-streams-strip" style="display:-webkit-flex; display:flex; -webkit-flex-wrap:wrap; flex-wrap:wrap; -webkit-flex-direction:row; flex-direction:row; padding: 10px 80px; box-sizing:border-box;">' +
                                 this.renderStreamItems() +
                             '</div>' +
                         '</div>' +
@@ -116,8 +116,8 @@
                         '<div class="badge-viewers">' + App.utils.formatViewers(s.viewer_count) + '</div>' +
                         '<img src="' + thumb + '" onerror="this.src=\'icon.png\'" style="width:100%; height:100%; object-fit:cover;">' +
                         '<div class="card-info">' +
-                            '<div style="font-size:22px; font-weight:bold; color:white;">' + s.user_name + '</div>' +
-                            '<div style="font-size:16px; color:#adadb8; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + s.title + '</div>' +
+                            '<div style="font-size:14px; font-weight:bold; color:white;">' + s.user_name + '</div>' +
+                            '<div style="font-size:11px; color:#adadb8; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + s.title + '</div>' +
                         '</div>' +
                     '</div>';
             }).join('');
@@ -129,14 +129,10 @@
 
             if (state.activeSection === 1 && !App.nav.inMenu) {
                 var item = document.getElementById('cat-item-1-' + state.streamCol);
-                if (item) item.classList.add('selected');
-                var strip = document.getElementById('cat-streams-strip');
-                if (strip) {
-                    strip.style.webkitTransform = 'translateX(-' + (state.streamCol * 580) + 'px)';
-                    strip.style.transform = 'translateX(-' + (state.streamCol * 580) + 'px)';
+                if (item) {
+                    item.classList.add('selected');
+                    item.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
-                var targetContainer = document.getElementById('section-1');
-                if (targetContainer) targetContainer.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
 
             if (App.nav.inMenu) window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -146,21 +142,39 @@
             var self = this;
             if (e.keyCode === 39) { 
                 if (state.activeSection === 1) {
-                    if (state.streamCol < state.streams.length - 1) {
+                    if (state.streamCol % 3 < 2 && state.streamCol < state.streams.length - 1) {
                         state.streamCol++;
                         if (state.streamCol >= state.visibleStreams - 2) {
-                            state.visibleStreams += 3;
+                            state.visibleStreams += 6;
                             document.getElementById('cat-streams-strip').innerHTML = this.renderStreamItems();
                         }
                     }
                 }
             } else if (e.keyCode === 37) { 
-                if (state.activeSection === 1 && state.streamCol > 0) {
-                    state.streamCol--;
+                if (state.activeSection === 1) {
+                    if (state.streamCol % 3 > 0) {
+                        state.streamCol--;
+                    }
+                }
+            } else if (e.keyCode === 40) { 
+                if (state.activeSection === 1) {
+                    if (state.streamCol + 3 < state.streams.length) {
+                        state.streamCol += 3;
+                        if (state.streamCol >= state.visibleStreams - 3) {
+                            state.visibleStreams += 6;
+                            document.getElementById('cat-streams-strip').innerHTML = this.renderStreamItems();
+                        }
+                    }
                 }
             } else if (e.keyCode === 38) { 
-                App.nav.inMenu = true;
-                App.nav.update();
+                if (state.activeSection === 1) {
+                    if (state.streamCol >= 3) {
+                        state.streamCol -= 3;
+                    } else {
+                        App.nav.inMenu = true;
+                        App.nav.update();
+                    }
+                }
             } else if (e.keyCode === 13) { 
                 if (state.activeSection === 1) {
                     var s = state.streams[state.streamCol];
