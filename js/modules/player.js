@@ -22,7 +22,10 @@
         seekBarUpdateInterval: null,
         currentTime: 0,
         totalDuration: 0,
-        isSeekBarFocused: false
+        isSeekBarFocused: false,
+        seekDebounceTimer: null,
+        seekingCooldownTimer: null,
+        isSeekingCooldown: false
     };
 
     var LIVE_BTNS = ['btn-play', 'btn-chat', 'btn-quality', 'btn-goto-channel'];
@@ -249,6 +252,7 @@
             clearInterval(state.seekBarUpdateInterval);
             state.seekBarUpdateInterval = setInterval(function() {
                 if (!state.inPlayer || !state.isVod) { clearInterval(state.seekBarUpdateInterval); return; }
+                if (state.seekDebounceTimer || state.isSeekingCooldown) return;
                 try {
                     state.currentTime = webapis.avplay.getCurrentTime() / 1000;
                     if (state.totalDuration <= 0) {
@@ -301,7 +305,9 @@
                     },
                     oncurrentplaytime: function(currentTime) {
                         clearTimeout(state.bufferingWatchdog);
-                        if (state.isVod) state.currentTime = currentTime / 1000;
+                        if (state.isVod && !state.seekDebounceTimer && !state.isSeekingCooldown) {
+                            state.currentTime = currentTime / 1000;
+                        }
                     },
                     onerror: function() {
                         clearTimeout(state.bufferingWatchdog);
@@ -374,17 +380,61 @@
             } catch(e) {}
         },
 
+        seekByFluid: function(seconds) {
+            if (!state.isVod || state.totalDuration <= 0) return;
+            var self = this;
+            state.currentTime += seconds;
+            if (state.currentTime < 0) state.currentTime = 0;
+            if (state.currentTime > state.totalDuration) state.currentTime = state.totalDuration - 1;
+            
+            this.updateSeekBar();
+            
+            if (state.seekDebounceTimer) {
+                clearTimeout(state.seekDebounceTimer);
+            }
+            state.seekDebounceTimer = setTimeout(function() {
+                self.commitSeek();
+            }, 600);
+        },
+
+        commitSeek: function() {
+            if (!state.isVod) return;
+            if (state.seekDebounceTimer) {
+                clearTimeout(state.seekDebounceTimer);
+                state.seekDebounceTimer = null;
+            }
+            try {
+                var targetMs = state.currentTime * 1000;
+                webapis.avplay.seekTo(targetMs);
+                
+                state.isSeekingCooldown = true;
+                clearTimeout(state.seekingCooldownTimer);
+                state.seekingCooldownTimer = setTimeout(function() {
+                    state.isSeekingCooldown = false;
+                }, 1500);
+            } catch(e) { console.error("commitSeek error:", e); }
+        },
+
         getSeekAmount: function() {
-            if (state.seekHoldCount <= 1) return 60;
-            if (state.seekHoldCount <= 3) return 120;
-            if (state.seekHoldCount <= 6) return 300;
-            return 600;
+            if (state.seekHoldCount <= 1) return 10;
+            if (state.seekHoldCount <= 3) return 30;
+            if (state.seekHoldCount <= 6) return 60;
+            return 300;
         },
 
         closeNativePlayer: function() {
             state.inPlayer = false;
             clearInterval(state.seekBarUpdateInterval);
             clearTimeout(state.seekHoldTimer);
+            if (state.seekDebounceTimer) {
+                clearTimeout(state.seekDebounceTimer);
+                state.seekDebounceTimer = null;
+            }
+            if (state.seekingCooldownTimer) {
+                clearTimeout(state.seekingCooldownTimer);
+                state.seekingCooldownTimer = null;
+            }
+            state.isSeekingCooldown = false;
             if (state.isChatOpen) {
                 state.isChatOpen = false;
                 var chatContainer = document.getElementById('player-chat-container');
@@ -452,13 +502,22 @@
                     this.showPlayerUI(); this.updatePlayerFocus();
                 } else if (state.isSeekBarFocused) {
                     state.isSeekBarFocused = false;
+                    this.commitSeek();
                     this.showPlayerUI(); this.updatePlayerFocus();
                 } else this.closeNativePlayer();
                 return;
             }
 
             if (isUIHidden) {
-                if (e.keyCode === 13 || (e.keyCode >= 37 && e.keyCode <= 40)) { this.showPlayerUI(); this.updatePlayerFocus(); }
+                if (state.isVod && (e.keyCode === 37 || e.keyCode === 39)) {
+                    this.showPlayerUI();
+                    state.isSeekBarFocused = true;
+                    this.updatePlayerFocus();
+                    this.seekByFluid(e.keyCode === 39 ? 10 : -10);
+                } else if (e.keyCode === 13 || (e.keyCode >= 37 && e.keyCode <= 40)) {
+                    this.showPlayerUI();
+                    this.updatePlayerFocus();
+                }
                 return;
             }
 
@@ -477,13 +536,12 @@
 
             if (state.isSeekBarFocused) {
                 if (e.keyCode === 39) {
-                    var pct = state.totalDuration > 0 ? (state.currentTime / state.totalDuration) * 100 : 0;
-                    this.seekToPercent(Math.min(100, pct + 1));
+                    this.seekByFluid(10);
                 } else if (e.keyCode === 37) {
-                    var pct = state.totalDuration > 0 ? (state.currentTime / state.totalDuration) * 100 : 0;
-                    this.seekToPercent(Math.max(0, pct - 1));
+                    this.seekByFluid(-10);
                 } else if (e.keyCode === 38 || e.keyCode === 13) {
                     state.isSeekBarFocused = false;
+                    this.commitSeek();
                     this.updatePlayerFocus();
                 }
                 this.showPlayerUI();
@@ -543,6 +601,15 @@
         destroy: function() {
             clearInterval(state.seekBarUpdateInterval);
             clearTimeout(state.seekHoldTimer);
+            if (state.seekDebounceTimer) {
+                clearTimeout(state.seekDebounceTimer);
+                state.seekDebounceTimer = null;
+            }
+            if (state.seekingCooldownTimer) {
+                clearTimeout(state.seekingCooldownTimer);
+                state.seekingCooldownTimer = null;
+            }
+            state.isSeekingCooldown = false;
             if (state.inPlayer) this.closeNativePlayer();
         }
     };

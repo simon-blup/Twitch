@@ -163,23 +163,33 @@
 
         renderVodItems: function() {
             if (state.vods.length === 0) return '<div style="color:#adadb8; font-size:20px;">Nessun video trovato.</div>';
-            return state.vods.slice(0, state.visibleVods).map(function(v, i) {
-                var thumb = 'https://vod-secure.twitch.tv/_404/404_processing_600x338.png';
-                if (v.thumbnail_url) {
-                    thumb = v.thumbnail_url.replace('%{width}', '600').replace('%{height}', '338').replace('{width}', '600').replace('{height}', '338');
-                }
-                var durationBadge = v.isLiveItem ? '<div class="badge-live">LIVE</div>' : '<div class="badge-live" style="background:rgba(0,0,0,0.8);">' + v.duration + '</div>';
-                var viewerBadge = v.isLiveItem ? '<div class="badge-viewers">' + App.utils.formatViewers(v.view_count) + '</div>' : '<div class="badge-viewers no-dot" style="top:20px; right:20px; bottom:auto; left:auto;">' + App.utils.formatViewers(v.view_count) + ' views</div>';
+            var visibleVodsList = state.vods.slice(0, state.visibleVods);
+            var html = '';
+            var numRows = Math.ceil(visibleVodsList.length / 3);
+            for (var r = 0; r < numRows; r++) {
+                var rowItems = visibleVodsList.slice(r * 3, r * 3 + 3);
+                html += '<div id="chan-row-1-' + r + '" class="channel-grid-row" style="display:-webkit-flex; display:flex; -webkit-flex-direction:row; flex-direction:row; -webkit-justify-content:flex-start; justify-content:flex-start; width: 100%; margin-bottom: 25px;">';
+                rowItems.forEach(function(v, colIndex) {
+                    var idx = r * 3 + colIndex;
+                    var thumb = 'https://vod-secure.twitch.tv/_404/404_processing_600x338.png';
+                    if (v.thumbnail_url) {
+                        thumb = v.thumbnail_url.replace('%{width}', '600').replace('%{height}', '338').replace('{width}', '600').replace('{height}', '338');
+                    }
+                    var durationBadge = v.isLiveItem ? '<div class="badge-live">LIVE</div>' : '<div class="badge-live" style="background:rgba(0,0,0,0.8);">' + v.duration + '</div>';
+                    var viewerBadge = v.isLiveItem ? '<div class="badge-viewers">' + App.utils.formatViewers(v.view_count) + '</div>' : '<div class="badge-viewers no-dot" style="top:20px; right:20px; bottom:auto; left:auto;">' + App.utils.formatViewers(v.view_count) + ' views</div>';
 
-                return '<div id="chan-item-1-' + i + '" class="channel-card" style="width:560px; margin-right:20px; -webkit-flex-shrink:0; flex-shrink:0;">' +
-                        durationBadge + viewerBadge +
-                        '<img src="' + thumb + '" onerror="this.src=\'https://vod-secure.twitch.tv/_404/404_processing_600x338.png\'" style="width:100%; height:100%; object-fit:cover;">' +
-                        '<div class="card-info">' +
-                            '<div style="font-size:14px; font-weight:bold; color:white;">' + v.title + '</div>' +
-                            '<div style="font-size:11px; color:#adadb8; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + new Date(v.created_at).toLocaleDateString() + '</div>' +
-                        '</div>' +
-                    '</div>';
-            }).join('');
+                    html += '<div id="chan-item-1-' + idx + '" class="channel-card" style="width:560px; margin-right:20px; -webkit-flex-shrink:0; flex-shrink:0;">' +
+                            durationBadge + viewerBadge +
+                            '<img src="' + thumb + '" onerror="this.src=\'https://vod-secure.twitch.tv/_404/404_processing_600x338.png\'" style="width:100%; height:100%; object-fit:cover;">' +
+                            '<div class="card-info">' +
+                                '<div style="font-size:14px; font-weight:bold; color:white;">' + v.title + '</div>' +
+                                '<div style="font-size:11px; color:#adadb8; margin-top:6px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">' + new Date(v.created_at).toLocaleDateString() + '</div>' +
+                            '</div>' +
+                        '</div>';
+                });
+                html += '</div>';
+            }
+            return html;
         },
 
         updateSelection: function() {
@@ -190,7 +200,13 @@
                 var item = document.getElementById('chan-item-1-' + state.vodCol);
                 if (item && !App.nav.inMenu) {
                     item.classList.add('selected');
-                    item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    var rowIdx = Math.floor(state.vodCol / 3);
+                    var rowEl = document.getElementById('chan-row-1-' + rowIdx);
+                    if (rowEl) {
+                        rowEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    } else {
+                        item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
                 }
             }
 
@@ -228,6 +244,9 @@
                 if (state.activeSection === 1) {
                     if (state.vodCol >= 3) {
                         state.vodCol -= 3;
+                    } else {
+                        App.nav.inMenu = true;
+                        App.nav.update();
                     }
                 }
             } else if (e.keyCode === 13) { 

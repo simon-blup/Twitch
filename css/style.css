@@ -892,10 +892,10 @@ body.player-active #app-container {
     box-shadow: 0 0 25px rgba(145, 70, 255, 0.8); background: rgba(145, 70, 255, 0.9);
 }
 
-.player-controls-left { position: absolute; left: 60px; bottom: 60px; display: -webkit-flex; display: flex; /* gap:  */ }
+.player-controls-left { position: absolute; left: 60px; bottom: 20px; display: -webkit-flex; display: flex; /* gap:  */ }
 
 .quality-menu {
-    position: absolute; left: 60px; bottom: 140px; background: rgba(31, 31, 35, 0.95);
+    position: absolute; left: 60px; bottom: 160px; background: rgba(31, 31, 35, 0.95);
     border-radius: 15px; padding: 10px 0; backdrop-filter: blur(10px); flex-direction: column;
     z-index: 1005; width: 250px;
 }
@@ -907,7 +907,7 @@ body.player-active #app-container {
     position: absolute;
     left: 60px;
     right: 60px;
-    bottom: 20px;
+    bottom: 95px;
     display: -webkit-flex; display: flex;
     -webkit-flex-direction: column; flex-direction: column;
     -webkit-align-items: flex-start; align-items: flex-start;
@@ -1439,7 +1439,7 @@ body.theme-light .channel-background-gradient {
 }
 
 .profile-name {
-    font-size: 36px;
+    font-size: 52px;
     font-weight: 800;
     margin: 0 0 10px 0;
     letter-spacing: -0.5px;
@@ -1464,13 +1464,13 @@ body.theme-light .channel-background-gradient {
 }
 
 .profile-followers-count {
-    font-size: 16px;
+    font-size: 24px;
     font-weight: bold;
     color: #bf94ff;
 }
 
 .profile-followers-label {
-    font-size: 13px;
+    font-size: 18px;
     color: #adadb8;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -1481,7 +1481,7 @@ body.theme-light .profile-followers-label {
 }
 
 .profile-description {
-    font-size: 14px;
+    font-size: 22px;
     color: #efeff1;
     line-height: 1.5;
     max-width: 850px;
@@ -1536,7 +1536,7 @@ body.theme-light .profile-description {
 }
 
 .category-name {
-    font-size: 36px;
+    font-size: 52px;
     margin: 0 0 10px 0;
     font-weight: 800;
     letter-spacing: -0.5px;
@@ -1549,7 +1549,7 @@ body.theme-light .category-name {
 }
 
 .category-viewers {
-    font-size: 16px;
+    font-size: 24px;
     color: #bf94ff;
     margin-top: 5px;
     font-weight: bold;
