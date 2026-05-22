@@ -23,6 +23,8 @@
         },
 
         openChannelView: function(login) {
+            App.nav.inMenu = false;
+            App.nav.update();
             state.channelLogin = login.toLowerCase();
             state.seqId = Date.now();
             state.activeSection = 1; 
@@ -129,30 +131,25 @@
             var banner = state.channelData.offline_image_url || state.channelData.profile_image_url || '';
             var isAvatarFallback = !state.channelData.offline_image_url;
             
-            var bannerHtml = banner ? '<div style="position: absolute; top: 0; left: 0; width: 100%; height: 500px; z-index: -1; overflow: hidden; opacity: 0.4;">' +
-                    '<div style="width: 100%; height: 100%; background-image: url(\'' + banner + '\'); background-size: cover; background-position: center; ' + (isAvatarFallback ? '-webkit-filter: blur(20px); filter: blur(20px); -webkit-transform: scale(1.2); transform: scale(1.2);' : '') + '"></div>' +
-                    '<div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 200px; background: linear-gradient(to bottom, transparent, #0e0e10);"></div>' +
+            var bannerHtml = banner ? '<div class="channel-background">' +
+                    '<div class="channel-background-image" style="background-image: url(\'' + banner + '\');"></div>' +
+                    '<div class="channel-background-gradient"></div>' +
                 '</div>' : '';
 
-            var html = '<div id="channel-view" style="padding: 60px 0; color: white; width: 100%; overflow-x: hidden; position: relative;">' +
+            var html = '<div id="channel-view">' +
                     bannerHtml +
-                    '<div style="display:-webkit-flex; display:flex; -webkit-align-items:flex-start; align-items:flex-start; margin-bottom:60px; padding: 0 80px;">' +
-                        '<div style="display:-webkit-flex; display:flex; -webkit-flex:1; flex:1;">' +
-                            '<img src="' + state.channelData.profile_image_url + '" style="width:180px; height:180px; border-radius:50%; border:6px solid #18181b; background:#18181b; box-shadow: 0 10px 30px rgba(0,0,0,0.5); margin-right:40px; -webkit-flex-shrink:0; flex-shrink:0;">' +
-                            '<div style="padding-top:20px;">' +
-                                '<h1 style="font-size:54px; margin:0; font-weight:bold; color:' + titleColor + ';">' + state.channelData.display_name + '</h1>' +
-                                '<div style="font-size:20px; color:#adadb8; margin-top:10px; max-width: 800px; line-height: 1.4;">' + (state.channelData.description || '') + '</div>' +
+                    '<div class="profile-header-container">' +
+                        '<img class="profile-avatar" src="' + state.channelData.profile_image_url + '">' +
+                        '<div class="profile-info-content">' +
+                            '<h1 class="profile-name" style="color:' + titleColor + ';">' + state.channelData.display_name + '</h1>' +
+                            '<div class="profile-meta-row">' +
+                                '<span class="profile-followers-count" style="color:' + titleColor + ';">' + App.utils.formatViewers(state.followerCount) + '</span>' +
+                                '<span class="profile-followers-label">' + App.t('followers') + '</span>' +
                             '</div>' +
-                        '</div>' +
-                        '<div style="padding-top:50px; text-align:right; -webkit-flex-shrink:0; flex-shrink:0;">' +
-                            '<div style="font-size:22px; font-weight:bold; color:' + titleColor + ';">' + App.utils.formatViewers(state.followerCount) + '</div>' +
-                            '<div style="font-size:14px; color:#adadb8; text-transform:uppercase; letter-spacing:1px;">' + App.t('followers') + '</div>' +
+                            '<div class="profile-description">' + (state.channelData.description || '') + '</div>' +
                         '</div>' +
                     '</div>' +
-                    '<div id="section-1" style="margin-bottom:60px; ' + (state.vods.length === 0 ? 'display:none;' : '') + '">' +
-                        '<div style="display:-webkit-flex; display:flex; -webkit-align-items:center; align-items:center; margin-bottom:20px; padding: 0 80px;">' +
-                            '<h2 style="font-size:32px; margin:0;">Video ' + (state.isLive ? '& Diretta' : '') + '</h2>' +
-                        '</div>' +
+                    '<div id="section-1" class="channel-bottom-section" style="' + (state.vods.length === 0 ? 'display:none;' : '') + '">' +
                         '<div style="width: 100%; overflow: visible;">' +
                             '<div id="chan-vods-strip" style="display:-webkit-flex; display:flex; -webkit-flex-direction:row; flex-direction:row; padding: 10px 80px; -webkit-transition: -webkit-transform 0.3s cubic-bezier(0.23, 1, 0.32, 1); transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1); -webkit-transform: translateX(0px); transform: translateX(0px);">' +
                                 this.renderVodItems() +
@@ -218,7 +215,7 @@
             } else if (e.keyCode === 37) { 
                 if (state.activeSection === 1 && state.vodCol > 0) state.vodCol--;
             } else if (e.keyCode === 38) { 
-                App.nav.inMenu = true; App.nav.update();
+                // Disattivato l'inserimento nel menu in questa pagina
             } else if (e.keyCode === 13) { 
                 if (state.activeSection === 1) {
                     var v = state.vods[state.vodCol];

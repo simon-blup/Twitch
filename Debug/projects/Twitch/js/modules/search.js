@@ -322,14 +322,14 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
       if (!resultsArea) return;
       var isLight = document.body.classList.contains('theme-light');
       var titleColor = isLight ? '#000' : 'white';
-      var html = "<div style=\"display:flex; flex-direction:column; min-height:calc(100vh - 340px); padding-bottom:40px;\">";
+      var html = "<div style=\"display:-webkit-flex; display:flex; -webkit-flex-direction:column; flex-direction:column; min-height:calc(100vh - 340px); padding-bottom:40px;\">";
       state.dataRows.forEach(function (row, rIdx) {
         var isLast = rIdx === state.dataRows.length - 1;
         var rowStyle = isLast && state.dataRows.length > 1 ? 'margin-top:auto;' : '';
         html += "<div style=\"".concat(rowStyle, "\">");
         html += "<h3 style=\"color:".concat(titleColor, "; margin: 30px 0 20px 80px; font-size:26px;\">").concat(row.title, "</h3>");
         html += "<div style=\"overflow:hidden; width:100%; position:relative;\">";
-        html += "<div id=\"search-row-".concat(rIdx, "\" style=\"display:flex; gap:30px; transition: transform 0.3s ease; padding: 10px 80px;\">");
+        html += "<div id=\"search-row-".concat(rIdx, "\" style=\"display:-webkit-flex; display:flex; -webkit-transition: -webkit-transform 0.3s ease; transition: transform 0.3s ease; padding: 10px 80px;\">");
         row.data.forEach(function (item, cIdx) {
           if (row.type === 'live') {
             var thumb = App.utils.getSafeThumb(item.thumbnail_url, 'stream');
@@ -361,8 +361,9 @@ function _asyncToGenerator(n) { return function () { var t = this, e = arguments
           activeCard.classList.add('selected');
           var rowDiv = document.getElementById("search-row-".concat(state.activeRow));
           if (rowDiv) {
-            var cardWidth = activeCard.offsetWidth + 30; // 30 is gap
+            var cardWidth = activeCard.offsetWidth + 30;
             var offset = -(state.activeCol * cardWidth);
+            rowDiv.style.webkitTransform = "translateX(".concat(offset, "px)");
             rowDiv.style.transform = "translateX(".concat(offset, "px)");
           }
           activeCard.scrollIntoView({

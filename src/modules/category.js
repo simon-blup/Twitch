@@ -48,12 +48,31 @@
         },
 
         fetchStreams: function() {
+            var self = this;
             var mySeq = state.seqId;
-            return App.api.twitchFetch('https://api.twitch.tv/helix/streams?game_id=' + state.categoryData.id + '&first=50', {}, 60)
-                .then(function(res) {
+            var allStreams = [];
+            
+            function fetchPage(cursor, pageCount) {
+                var url = 'https://api.twitch.tv/helix/streams?game_id=' + state.categoryData.id + '&first=100';
+                if (cursor) {
+                    url += '&after=' + cursor;
+                }
+                return App.api.twitchFetch(url, {}, 60).then(function(res) {
                     if (mySeq !== state.seqId) return;
-                    state.streams = res.data || [];
-                }).catch(function(e) { console.error("Fetch Streams Error", e); });
+                    var data = res.data || [];
+                    allStreams = allStreams.concat(data);
+                    
+                    var pageCursor = res.pagination && res.pagination.cursor;
+                    if (pageCursor && pageCount < 3 && data.length === 100) {
+                        return fetchPage(pageCursor, pageCount + 1);
+                    }
+                });
+            }
+
+            return fetchPage(null, 1).then(function() {
+                if (mySeq !== state.seqId) return;
+                state.streams = allStreams;
+            }).catch(function(e) { console.error("Fetch Streams Error", e); });
         },
 
         fetchClips: function() {
@@ -81,32 +100,34 @@
 
             var totalViewers = state.streams.reduce(function(acc, s) { return acc + s.viewer_count; }, 0);
             var boxArt = App.utils.getSafeThumb(state.categoryData.box_art_url, 'category');
-            var plusSign = (state.streams.length >= 40 || totalViewers > 1000) ? '+' : '';
+            var plusSign = (state.streams.length >= 300) ? '+' : '';
+            var isLight = document.body.classList.contains('theme-light');
+            var titleColor = isLight ? '#000' : 'white';
 
-            var html = '<div id="category-view" style="padding: 40px 0; color: white; width: 100%; overflow-x: hidden;">' +
-                    '<div style="display:flex; align-items:center; margin-bottom:50px; padding: 0 80px;">' +
-                        '<img src="' + boxArt + '" style="width:120px; height:160px; border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,0.5); margin-right:40px;">' +
-                        '<div>' +
-                            '<h1 style="font-size:54px; margin:0; font-weight:bold;">' + state.categoryData.name + '</h1>' +
-                            '<div style="font-size:24px; color:#bf94ff; margin-top:10px; font-weight:bold;">' +
+            var bannerHtml = boxArt ? '<div class="channel-background">' +
+                    '<div class="channel-background-image" style="background-image: url(\'' + boxArt + '\');"></div>' +
+                    '<div class="channel-background-gradient"></div>' +
+                '</div>' : '';
+
+            var html = '<div id="category-view">' +
+                    bannerHtml +
+                    '<div class="category-header-container">' +
+                        '<img class="category-boxart" src="' + boxArt + '" onerror="this.src=\'icon.png\'">' +
+                        '<div class="category-info-content">' +
+                            '<h1 class="category-name" style="color:' + titleColor + ';">' + state.categoryData.name + '</h1>' +
+                            '<div class="category-viewers">' +
                                 plusSign + App.utils.formatViewers(totalViewers) + ' ' + App.t('viewers') +
                             '</div>' +
                         '</div>' +
                     '</div>' +
-                    '<div id="section-1" style="margin-bottom:60px;">' +
-                        '<div style="display:flex; align-items:center; margin-bottom:20px; padding: 0 80px;">' +
-                            '<h2 style="font-size:32px; margin:0;">' + App.t('search_live') + '</h2>' +
-                        '</div>' +
+                    '<div id="section-1" class="category-bottom-section">' +
                         '<div style="width: 100%; overflow: visible;">' +
                             '<div id="cat-streams-strip" style="display:flex; flex-direction:row; padding: 10px 80px; transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1); transform: translateX(0px);">' +
                                 this.renderStreamItems() +
                             '</div>' +
                         '</div>' +
                     '</div>' +
-                    '<div id="section-3" style="margin-bottom:60px;">' +
-                        '<div style="display:flex; align-items:center; margin-bottom:20px; padding: 0 80px;">' +
-                            '<h2 style="font-size:32px; margin:0;">' + App.t('clips') + '</h2>' +
-                        '</div>' +
+                    '<div id="section-3" class="category-bottom-section" style="' + (state.clips.length === 0 ? 'display:none;' : '') + '">' +
                         '<div style="width: 100%; overflow: visible;">' +
                             '<div id="cat-clips-strip" style="display:flex; flex-direction:row; padding: 10px 80px; transition: transform 0.3s cubic-bezier(0.23, 1, 0.32, 1); transform: translateX(0px);">' +
                                 this.renderClipItems() +
